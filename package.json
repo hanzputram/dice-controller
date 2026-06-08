@@ -1,0 +1,14 @@
+{
+  "name": "dice-dashboard",
+  "version": "1.0.0",
+  "description": "Dice Total Controller with Modern Dashboard",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "selfsigned": "^5.5.0"
+  }
+}

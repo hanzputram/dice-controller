@@ -1,0 +1,2191 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dice Total Controller — Dashboard</title>
+  <meta name="description" content="Modern dashboard to control the total of 9 dice with even distribution." />
+  <style>
+    /* ═══════════════════════════════════════════════
+       RESET & BASE
+       ═══════════════════════════════════════════════ */
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg-primary: #0F172A;
+      --bg-secondary: #1E293B;
+      --bg-card: rgba(30, 41, 59, 0.6);
+      --bg-card-hover: rgba(30, 41, 59, 0.8);
+      --bg-input: rgba(15, 23, 42, 0.7);
+      --border-subtle: rgba(148, 163, 184, 0.12);
+      --border-hover: rgba(148, 163, 184, 0.25);
+      --text-primary: #F1F5F9;
+      --text-secondary: #94A3B8;
+      --text-muted: #64748B;
+      --accent: #3B82F6;
+      --accent-soft: rgba(59, 130, 246, 0.15);
+      --accent-glow: rgba(59, 130, 246, 0.25);
+      --teal: #14B8A6;
+      --teal-soft: rgba(20, 184, 166, 0.15);
+      --success: #22C55E;
+      --success-soft: rgba(34, 197, 94, 0.12);
+      --error: #EF4444;
+      --error-soft: rgba(239, 68, 68, 0.12);
+      --warning: #F59E0B;
+      --warning-soft: rgba(245, 158, 11, 0.12);
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --radius-xl: 20px;
+      --radius-pill: 9999px;
+      --shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
+      --shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.35);
+      --transition: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+      --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 600px 400px at 50% 0%, rgba(59, 130, 246, 0.06), transparent),
+        radial-gradient(ellipse 400px 300px at 80% 80%, rgba(20, 184, 166, 0.04), transparent);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ═══════════════════════════════════════════════
+       LAYOUT
+       ═══════════════════════════════════════════════ */
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 3rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ═══════════════════════════════════════════════
+       GLASS CARD
+       ═══════════════════════════════════════════════ */
+    .card {
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-xl);
+      padding: 2rem;
+      margin-bottom: 1.5rem;
+      box-shadow: var(--shadow);
+      transition: border-color var(--transition), box-shadow var(--transition);
+    }
+
+    .card:hover {
+      border-color: var(--border-hover);
+    }
+
+    .card-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .card-label .badge {
+      font-size: 0.65rem;
+      background: var(--accent-soft);
+      color: var(--accent);
+      padding: 2px 8px;
+      border-radius: var(--radius-pill);
+      letter-spacing: 0;
+      text-transform: none;
+      font-weight: 500;
+    }
+
+    .card-label .badge-success {
+      background: var(--success-soft);
+      color: var(--success);
+    }
+
+    .card-label .badge-warning {
+      background: var(--warning-soft);
+      color: var(--warning);
+    }
+
+    /* ═══════════════════════════════════════════════
+       AUTH BAR (top-right user identity)
+       ═══════════════════════════════════════════════ */
+    .auth-bar {
+      position: fixed;
+      top: 1rem;
+      left: 1rem;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .user-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.35rem 0.85rem;
+      background: var(--bg-card);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-pill);
+      font-size: 0.78rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      box-shadow: var(--shadow);
+      transition: all var(--transition);
+      cursor: default;
+      max-width: 280px;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+
+    .user-pill .user-icon {
+      font-size: 0.9rem;
+    }
+
+    .user-pill .user-name {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    .user-pill .user-device {
+      color: var(--text-muted);
+      font-size: 0.7rem;
+    }
+
+    .user-pill .perm-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .user-pill .perm-dot.rw { background: var(--success); }
+    .user-pill .perm-dot.ro { background: var(--warning); }
+
+    .user-pill.not-auth {
+      border-color: var(--error);
+      color: var(--error);
+    }
+
+    /* ═══════════════════════════════════════════════
+       API KEY CARD
+       ═══════════════════════════════════════════════ */
+    .apikey-row {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    .apikey-input {
+      flex: 1;
+      height: 42px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 0.85rem;
+      padding: 0 0.85rem;
+      outline: none;
+      transition: border-color var(--transition), box-shadow var(--transition);
+    }
+
+    .apikey-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+
+    .apikey-input::placeholder {
+      color: var(--text-muted);
+      font-family: var(--font);
+    }
+
+    .apikey-hints {
+      margin-top: 0.75rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .apikey-hint {
+      padding: 0.3rem 0.7rem;
+      font-size: 0.72rem;
+      font-family: 'Consolas', 'Monaco', monospace;
+      color: var(--text-muted);
+      background: rgba(15, 23, 42, 0.5);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-pill);
+      cursor: pointer;
+      transition: all var(--transition);
+      user-select: none;
+    }
+
+    .apikey-hint:hover {
+      color: var(--accent);
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+
+    /* ═══════════════════════════════════════════════
+       HEADER
+       ═══════════════════════════════════════════════ */
+    .header {
+      text-align: center;
+      padding: 1rem 0 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text-primary);
+      margin-bottom: 0.35rem;
+    }
+
+    .header h1 .emoji {
+      display: inline-block;
+      margin-right: 0.25rem;
+    }
+
+    .header .subtitle {
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+      font-weight: 400;
+    }
+
+    /* ═══════════════════════════════════════════════
+       DICE GRID
+       ═══════════════════════════════════════════════ */
+    .dice-section { text-align: center; }
+
+    .dice-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      max-width: 240px;
+      margin: 0 auto 1.5rem;
+    }
+
+    .die {
+      width: 64px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      justify-self: center;
+      font-size: 2.2rem;
+      background: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      transition: transform var(--transition), border-color var(--transition), background var(--transition);
+      cursor: default;
+      user-select: none;
+      position: relative;
+    }
+
+    .die:hover { border-color: var(--accent); background: var(--accent-soft); }
+
+    .die.animate { animation: dieFlip 350ms cubic-bezier(0.4, 0, 0.2, 1); }
+
+    @keyframes dieFlip {
+      0%   { transform: scale(0.7) rotateX(90deg); opacity: 0.3; }
+      50%  { transform: scale(1.08) rotateX(0deg); opacity: 1; }
+      100% { transform: scale(1) rotateX(0deg); opacity: 1; }
+    }
+
+    .die-value {
+      font-size: 0.6rem;
+      position: absolute;
+      bottom: 3px;
+      right: 6px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .total-display { margin-top: 0.5rem; }
+
+    .total-display .total-number {
+      font-size: 3rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: var(--text-primary);
+      line-height: 1;
+    }
+
+    .total-display .total-label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      font-weight: 600;
+      margin-top: 0.25rem;
+    }
+
+    /* ═══════════════════════════════════════════════
+       SLIDER & CONTROLS
+       ═══════════════════════════════════════════════ */
+    .control-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .slider-wrap { flex: 1; position: relative; }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      background: var(--bg-secondary);
+      border-radius: 3px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: 3px solid var(--bg-primary);
+      box-shadow: 0 0 0 2px var(--accent), 0 2px 8px rgba(59, 130, 246, 0.3);
+      cursor: grab;
+      transition: box-shadow var(--transition), transform var(--transition);
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+      box-shadow: 0 0 0 3px var(--accent), 0 2px 12px rgba(59, 130, 246, 0.4);
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 22px; height: 22px; border-radius: 50%;
+      background: var(--accent); border: 3px solid var(--bg-primary);
+      box-shadow: 0 0 0 2px var(--accent); cursor: grab;
+    }
+
+    input[type="range"]::-moz-range-track {
+      height: 6px; background: var(--bg-secondary); border-radius: 3px;
+    }
+
+    .number-input {
+      width: 70px; height: 42px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      background: var(--bg-input);
+      color: var(--text-primary);
+      font-size: 1rem; font-weight: 600;
+      text-align: center; font-family: var(--font);
+      outline: none;
+      transition: border-color var(--transition), box-shadow var(--transition);
+    }
+
+    .number-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+
+    .slider-labels {
+      display: flex; justify-content: space-between;
+      font-size: 0.7rem; color: var(--text-muted);
+      margin-top: 0.35rem; font-weight: 500;
+    }
+
+    .presets { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+
+    .preset-btn {
+      padding: 0.45rem 1rem; font-size: 0.82rem; font-weight: 600;
+      font-family: var(--font); color: var(--text-secondary);
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-pill); cursor: pointer;
+      transition: all var(--transition); position: relative; user-select: none;
+    }
+
+    .preset-btn:hover {
+      color: var(--accent); border-color: var(--accent);
+      background: var(--accent-soft); transform: scale(1.05);
+    }
+
+    .preset-btn:active { transform: scale(0.97); }
+
+    .preset-btn.active {
+      color: #fff; background: var(--accent); border-color: var(--accent);
+    }
+
+    .preset-btn::after {
+      content: attr(data-tooltip);
+      position: absolute; bottom: calc(100% + 8px); left: 50%;
+      transform: translateX(-50%) scale(0.9);
+      background: var(--bg-secondary); color: var(--text-secondary);
+      font-size: 0.68rem; font-weight: 400;
+      padding: 4px 10px; border-radius: var(--radius-sm);
+      border: 1px solid var(--border-subtle); white-space: nowrap;
+      opacity: 0; pointer-events: none;
+      transition: opacity 200ms, transform 200ms;
+    }
+
+    .preset-btn:hover::after { opacity: 1; transform: translateX(-50%) scale(1); }
+
+    /* ═══════════════════════════════════════════════
+       DISTRIBUTION SUMMARY
+       ═══════════════════════════════════════════════ */
+    .dist-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+
+    .dist-item {
+      display: flex; flex-direction: column; gap: 6px;
+      padding: 0.75rem; background: rgba(15, 23, 42, 0.5);
+      border: 1px solid var(--border-subtle); border-radius: var(--radius-md);
+      transition: border-color var(--transition);
+    }
+
+    .dist-item:hover { border-color: var(--border-hover); }
+
+    .dist-item-header { display: flex; align-items: center; justify-content: space-between; }
+    .dist-face { font-size: 1.3rem; line-height: 1; }
+    .dist-count { font-size: 0.78rem; font-weight: 600; color: var(--text-secondary); }
+    .dist-count span { color: var(--text-primary); font-size: 0.95rem; }
+
+    .dist-bar-track { height: 4px; background: var(--bg-secondary); border-radius: 2px; overflow: hidden; }
+    .dist-bar-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 400ms cubic-bezier(0.4, 0, 0.2, 1); }
+
+    /* ═══════════════════════════════════════════════
+       PROFILES
+       ═══════════════════════════════════════════════ */
+    .profile-bar { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
+
+    .profile-select {
+      flex: 1; height: 40px; background: var(--bg-input);
+      border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);
+      color: var(--text-primary); font-family: var(--font); font-size: 0.85rem;
+      padding: 0 0.75rem; outline: none; cursor: pointer;
+      transition: border-color var(--transition);
+    }
+
+    .profile-select:focus { border-color: var(--accent); }
+    .profile-select option { background: var(--bg-secondary); color: var(--text-primary); }
+
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      gap: 0.35rem; height: 40px; padding: 0 1rem;
+      font-size: 0.8rem; font-weight: 600; font-family: var(--font);
+      border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);
+      cursor: pointer; transition: all var(--transition);
+      white-space: nowrap; user-select: none;
+    }
+
+    .btn-accent { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn-accent:hover { background: #2563EB; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); }
+    .btn-ghost { background: transparent; color: var(--text-secondary); }
+    .btn-ghost:hover { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+    .btn-danger { background: transparent; color: var(--text-muted); }
+    .btn-danger:hover { background: var(--error-soft); color: var(--error); border-color: var(--error); }
+    .btn-teal { background: var(--teal); color: #fff; border-color: var(--teal); }
+    .btn-teal:hover { background: #0D9488; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(20, 184, 166, 0.3); }
+    .btn:active { transform: scale(0.97) !important; }
+
+    .profile-create-row { display: flex; gap: 0.5rem; align-items: center; }
+
+    .profile-create-row input[type="text"] {
+      flex: 1; height: 38px; background: var(--bg-input);
+      border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);
+      color: var(--text-primary); font-family: var(--font); font-size: 0.85rem;
+      padding: 0 0.75rem; outline: none; transition: border-color var(--transition);
+    }
+
+    .profile-create-row input[type="text"]:focus { border-color: var(--accent); }
+    .profile-create-row input[type="text"]::placeholder { color: var(--text-muted); }
+
+    .profile-list { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1rem; }
+
+    .profile-item {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.65rem 0.85rem; background: rgba(15, 23, 42, 0.5);
+      border: 1px solid var(--border-subtle); border-radius: var(--radius-md);
+      transition: all var(--transition);
+    }
+
+    .profile-item:hover { border-color: var(--border-hover); }
+    .profile-item.active-profile { border-color: var(--accent); background: var(--accent-soft); }
+    .profile-item .profile-name { flex: 1; font-size: 0.88rem; font-weight: 600; }
+    .profile-item .profile-total { font-size: 0.78rem; color: var(--text-muted); font-weight: 500; margin-right: 0.25rem; }
+    .profile-item .profile-actions { display: flex; gap: 0.35rem; }
+    .profile-item .profile-actions .btn { height: 30px; padding: 0 0.65rem; font-size: 0.72rem; }
+
+    /* ═══════════════════════════════════════════════
+       TABS
+       ═══════════════════════════════════════════════ */
+    .tabs {
+      display: flex; gap: 2px; background: rgba(15, 23, 42, 0.5);
+      border-radius: var(--radius-sm); padding: 3px; margin-bottom: 1.25rem;
+    }
+
+    .tab {
+      flex: 1; padding: 0.5rem 0.75rem; font-size: 0.78rem; font-weight: 600;
+      font-family: var(--font); color: var(--text-muted); background: transparent;
+      border: none; border-radius: 6px; cursor: pointer;
+      transition: all var(--transition); text-align: center; user-select: none;
+    }
+
+    .tab:hover { color: var(--text-secondary); }
+    .tab.active { color: var(--text-primary); background: var(--bg-card); box-shadow: 0 1px 4px rgba(0,0,0,0.2); }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; animation: tabFadeIn 250ms ease; }
+
+    @keyframes tabFadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ═══════════════════════════════════════════════
+       WEBHOOKS
+       ═══════════════════════════════════════════════ */
+    .webhook-list { display: flex; flex-direction: column; gap: 0.5rem; }
+
+    .webhook-item {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.6rem 0.85rem; background: rgba(15, 23, 42, 0.5);
+      border: 1px solid var(--border-subtle); border-radius: var(--radius-md);
+      transition: border-color var(--transition);
+    }
+
+    .webhook-item:hover { border-color: var(--border-hover); }
+
+    .webhook-url {
+      flex: 1; font-size: 0.82rem; color: var(--text-secondary);
+      font-family: 'Consolas', 'Monaco', monospace;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+
+    .webhook-create-row { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+
+    .webhook-create-row input[type="url"] {
+      flex: 1; height: 38px; background: var(--bg-input);
+      border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);
+      color: var(--text-primary); font-family: var(--font); font-size: 0.82rem;
+      padding: 0 0.75rem; outline: none; transition: border-color var(--transition);
+    }
+
+    .webhook-create-row input[type="url"]:focus { border-color: var(--accent); }
+    .webhook-create-row input[type="url"]::placeholder { color: var(--text-muted); }
+
+    /* ═══════════════════════════════════════════════
+       HISTORY
+       ═══════════════════════════════════════════════ */
+    .history-list {
+      display: flex; flex-direction: column; gap: 6px;
+      max-height: 320px; overflow-y: auto; padding-right: 4px;
+    }
+
+    .history-list::-webkit-scrollbar { width: 5px; }
+    .history-list::-webkit-scrollbar-track { background: transparent; }
+    .history-list::-webkit-scrollbar-thumb { background: var(--border-subtle); border-radius: 3px; }
+
+    .history-item {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.55rem 0.75rem; background: rgba(15, 23, 42, 0.4);
+      border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);
+      font-size: 0.78rem; transition: border-color var(--transition);
+    }
+
+    .history-item:hover { border-color: var(--border-hover); }
+    .history-time { color: var(--text-muted); font-size: 0.72rem; min-width: 58px; font-weight: 500; }
+
+    .history-change {
+      flex: 1; display: flex; align-items: center; gap: 0.4rem; font-weight: 600;
+    }
+
+    .history-old { color: var(--text-muted); }
+    .history-arrow { color: var(--text-muted); font-size: 0.7rem; }
+    .history-new { color: var(--accent); }
+
+    .history-user {
+      color: var(--teal);
+      font-size: 0.72rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .history-ip {
+      color: var(--text-muted); font-size: 0.68rem;
+      font-family: 'Consolas', 'Monaco', monospace;
+    }
+
+    .empty-state { text-align: center; padding: 2rem 1rem; color: var(--text-muted); font-size: 0.85rem; }
+    .empty-state .empty-icon { font-size: 2rem; margin-bottom: 0.5rem; opacity: 0.5; }
+
+    /* ═══════════════════════════════════════════════
+       STATUS TOAST
+       ═══════════════════════════════════════════════ */
+    .toast-container {
+      position: fixed; top: 1.5rem; right: 1.5rem; z-index: 1000;
+      display: flex; flex-direction: column; gap: 0.5rem;
+    }
+
+    .toast {
+      padding: 0.75rem 1.25rem; border-radius: var(--radius-md);
+      font-size: 0.85rem; font-weight: 500;
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--border-subtle); box-shadow: var(--shadow);
+      animation: toastIn 300ms cubic-bezier(0.4, 0, 0.2, 1);
+      transition: opacity 300ms, transform 300ms;
+    }
+
+    .toast.success { background: var(--success-soft); color: var(--success); border-color: rgba(34, 197, 94, 0.2); }
+    .toast.error { background: var(--error-soft); color: var(--error); border-color: rgba(239, 68, 68, 0.2); }
+    .toast.fade-out { opacity: 0; transform: translateX(20px); }
+
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateX(30px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    .loading-overlay {
+      position: absolute; inset: 0; background: rgba(15, 23, 42, 0.5);
+      border-radius: var(--radius-xl); display: flex; align-items: center;
+      justify-content: center; z-index: 5; opacity: 0; pointer-events: none;
+      transition: opacity var(--transition);
+    }
+
+    .loading-overlay.visible { opacity: 1; pointer-events: auto; }
+
+    .spinner {
+      width: 28px; height: 28px;
+      border: 3px solid var(--border-subtle); border-top-color: var(--accent);
+      border-radius: 50%; animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ═══════════════════════════════════════════════
+       FOOTER
+       ═══════════════════════════════════════════════ */
+    .footer {
+      text-align: center; color: var(--text-muted);
+      font-size: 0.75rem; margin-top: 1rem; padding-bottom: 1rem;
+    }
+
+    .footer a { color: var(--text-secondary); text-decoration: none; transition: color var(--transition); }
+    .footer a:hover { color: var(--accent); }
+
+    .health-dot {
+      display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+      background: var(--success); margin-right: 4px;
+      animation: pulse-dot 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+    /* ═══════════════════════════════════════════════
+       RESPONSIVE
+       ═══════════════════════════════════════════════ */
+    @media (max-width: 600px) {
+      .container { padding: 1.25rem 1rem 2rem; }
+      .header h1 { font-size: 1.5rem; }
+      .card { padding: 1.5rem; border-radius: var(--radius-lg); }
+      .die { width: 52px; height: 52px; font-size: 1.8rem; }
+      .dice-grid { max-width: 200px; gap: 10px; }
+      .total-display .total-number { font-size: 2.5rem; }
+      .dist-grid { grid-template-columns: repeat(2, 1fr); }
+      .control-row { flex-wrap: wrap; }
+      .slider-wrap { min-width: 100%; order: -1; }
+      .presets { gap: 6px; }
+      .preset-btn { padding: 0.5rem 0.85rem; font-size: 0.8rem; }
+      .toast-container { top: auto; bottom: 1rem; right: 1rem; left: 1rem; }
+      .toast { text-align: center; }
+      .profile-bar { flex-wrap: wrap; }
+      .profile-select { min-width: 100%; }
+      .profile-create-row { flex-wrap: wrap; }
+      .webhook-create-row { flex-wrap: wrap; }
+      .webhook-create-row input[type="url"] { min-width: 100%; }
+      .history-ip { display: none; }
+      .tabs { flex-wrap: nowrap; overflow-x: auto; }
+      .tab { font-size: 0.72rem; padding: 0.45rem 0.5rem; }
+      .auth-bar { position: static; margin-bottom: 0.5rem; justify-content: center; }
+      .apikey-row { flex-wrap: wrap; }
+      .apikey-input { min-width: 100%; }
+    }
+
+    .container { animation: fadeUp 500ms cubic-bezier(0.4, 0, 0.2, 1); }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Main content area — hidden until authenticated */
+    .main-content { display: none; }
+    .main-content.visible { display: block; }
+    /* ═══════════════════════════════════════════════
+       EXTENSION CONTROLLER
+       ═══════════════════════════════════════════════ */
+    .ext-controller-card .card-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .ext-dataset-selector {
+      display: flex;
+      gap: 1.5rem;
+      margin-bottom: 1.5rem;
+      padding: 1rem;
+      background: var(--bg-secondary);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-subtle);
+    }
+    
+    .ext-dataset-selector label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      cursor: pointer;
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    .ext-dataset-selector input[type="radio"] {
+      accent-color: var(--accent);
+      width: 1.2rem;
+      height: 1.2rem;
+      cursor: pointer;
+    }
+
+    .ext-inputs-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .ext-input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      align-items: center;
+    }
+    
+    .ext-input-group label {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      font-weight: 600;
+      letter-spacing: 0.05em;
+    }
+
+    .ext-input {
+      width: 100%;
+      text-align: center;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      background: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 0.75rem 0.5rem;
+      transition: all var(--transition);
+    }
+
+    .ext-input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-soft);
+      background: rgba(15, 23, 42, 0.9);
+    }
+    
+    /* Chrome, Safari, Edge, Opera */
+    .ext-input::-webkit-outer-spin-button,
+    .ext-input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    /* Firefox */
+    .ext-input[type=number] {
+      -moz-appearance: textfield;
+    }
+
+    .ext-actions {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border-subtle);
+    }
+    
+    .ext-actions .btn {
+      flex: 1;
+    }
+    
+    /* Toggle Switch */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+    }
+
+    .switch input { 
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: var(--bg-secondary);
+      transition: .4s;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 2px;
+      bottom: 2px;
+      background-color: var(--text-muted);
+      transition: .4s;
+    }
+
+    input:checked + .slider {
+      background-color: var(--success);
+      border-color: var(--success);
+    }
+
+    input:focus + .slider {
+      box-shadow: 0 0 1px var(--success);
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(20px);
+      background-color: white;
+    }
+
+    .slider.round {
+      border-radius: 24px;
+    }
+
+    .slider.round:before {
+      border-radius: 50%;
+    }
+
+  </style>
+</head>
+<body>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <div class="container">
+
+    <!-- AUTH BAR (user identity pill, shown after auth) -->
+    <div class="auth-bar" id="authBar">
+      <div class="user-pill not-auth" id="userPill">
+        <span class="user-icon">🔒</span>
+        <span>Not authenticated</span>
+      </div>
+    </div>
+
+    <!-- HEADER -->
+    <header class="header" id="header">
+      <h1><span class="emoji">🎲</span> Dice Total Controller</h1>
+      <p class="subtitle">Control total dari 9 dadu (9–54)</p>
+    </header>
+
+    <!-- API KEY INPUT -->
+    <section class="card" id="apiKeyCard">
+      <div class="card-label">
+        <span>🔑 API Key</span>
+        <span class="badge" id="authBadge">Not connected</span>
+      </div>
+      <div id="loginForm">
+        <div class="apikey-row">
+          <input
+            type="text"
+            id="apiKeyInput"
+            class="apikey-input"
+            placeholder="Masukkan API Key…"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <button class="btn btn-accent" id="connectBtn">Connect</button>
+          <button class="btn btn-danger" id="disconnectBtn" style="display:none">Logout</button>
+        </div>
+        <div style="margin-top: 0.75rem; font-size: 0.8rem; color: var(--text-secondary);">
+          Belum punya API Key? <a href="#" id="showRegisterBtn" style="color: var(--accent); text-decoration: none;">Register di sini</a>
+        </div>
+      </div>
+
+      <!-- REGISTER FORM (Hidden by default) -->
+      <div id="registerForm" style="display:none; margin-top: 1rem; border-top: 1px solid var(--border-subtle); padding-top: 1rem;">
+        <div style="font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--text-primary);">Daftar API Key Baru</div>
+        <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem; flex-wrap: wrap;">
+          <input type="text" id="regUserName" placeholder="Nama Anda" class="apikey-input" style="flex:1; min-width:120px;" maxlength="30" />
+          <input type="text" id="regUserDevice" placeholder="Nama Device (e.g. HP / Laptop)" class="apikey-input" style="flex:1; min-width:120px;" maxlength="30" />
+        </div>
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+          <button class="btn btn-teal" id="doRegisterBtn">Mendaftar</button>
+          <a href="#" id="showLoginBtn" style="font-size: 0.8rem; color: var(--text-muted); text-decoration: none; margin-left: auto;">Batal</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- MAIN CONTENT (hidden until authenticated) -->
+    <div class="main-content" id="mainContent">
+
+      <!-- DICE VISUALIZATION -->
+      <section class="card dice-section" style="position: relative;" id="diceCard">
+        <div class="card-label">Dice Grid</div>
+        <div class="loading-overlay" id="loadingOverlay">
+          <div class="spinner"></div>
+        </div>
+        <div class="dice-grid" id="diceGrid"></div>
+        <div class="total-display">
+          <div class="total-number" id="totalNumber">9</div>
+          <div class="total-label">Total</div>
+        </div>
+      </section>
+
+      <!-- PROFILES -->
+      <section class="card" id="profilesCard">
+        <div class="card-label">
+          <span>📋 Profiles</span>
+          <span class="badge" id="activeProfileBadge">None active</span>
+        </div>
+        <div class="profile-bar">
+          <select class="profile-select" id="profileSelect" aria-label="Select profile">
+            <option value="">— Pilih Profile —</option>
+          </select>
+          <button class="btn btn-teal" id="activateProfileBtn" title="Activate selected profile">
+            ▶ Activate
+          </button>
+        </div>
+        <div class="profile-create-row" id="profileCreateRow">
+          <input type="text" id="newProfileName" placeholder="Nama profile baru…" maxlength="40" />
+          <button class="btn btn-accent" id="createProfileBtn">+ Buat</button>
+        </div>
+        <div class="profile-list" id="profileList"></div>
+      </section>
+
+      <!-- GOOGLE DICE CONTROLLER -->
+      <section class="card ext-controller-card" id="extControllerCard">
+        <div class="card-label">
+          <span>🎲 Google Dice Controller</span>
+          <label class="switch" title="Enable/Disable extension override">
+            <input type="checkbox" id="extEnabledToggle" checked>
+            <span class="slider round"></span>
+          </label>
+        </div>
+        
+        <div class="ext-dataset-selector">
+          <label><input type="radio" name="dataset" value="1" checked> Dataset 1 (9x D6)</label>
+          <label><input type="radio" name="dataset" value="2"> Dataset 2 (D4, D6, D8, D10, D12, D20)</label>
+        </div>
+
+        <div class="ext-inputs-grid" id="extInputsGrid1">
+          <!-- 9 inputs for Dataset 1 -->
+          <input type="number" min="1" max="6" value="2" class="ext-input d6-input" data-index="0">
+          <input type="number" min="1" max="6" value="6" class="ext-input d6-input" data-index="1">
+          <input type="number" min="1" max="6" value="2" class="ext-input d6-input" data-index="2">
+          <input type="number" min="1" max="6" value="5" class="ext-input d6-input" data-index="3">
+          <input type="number" min="1" max="6" value="1" class="ext-input d6-input" data-index="4">
+          <input type="number" min="1" max="6" value="6" class="ext-input d6-input" data-index="5">
+          <input type="number" min="1" max="6" value="1" class="ext-input d6-input" data-index="6">
+          <input type="number" min="1" max="6" value="3" class="ext-input d6-input" data-index="7">
+          <input type="number" min="1" max="6" value="2" class="ext-input d6-input" data-index="8">
+        </div>
+
+        <div class="ext-inputs-grid" id="extInputsGrid2" style="display: none;">
+          <!-- 6 inputs for Dataset 2 -->
+          <div class="ext-input-group"><label>D4</label><input type="number" min="1" max="4" value="4" class="ext-input" data-index="0"></div>
+          <div class="ext-input-group"><label>D6</label><input type="number" min="1" max="6" value="6" class="ext-input" data-index="1"></div>
+          <div class="ext-input-group"><label>D8</label><input type="number" min="1" max="8" value="8" class="ext-input" data-index="2"></div>
+          <div class="ext-input-group"><label>D10</label><input type="number" min="1" max="10" value="10" class="ext-input" data-index="3"></div>
+          <div class="ext-input-group"><label>D12</label><input type="number" min="1" max="12" value="12" class="ext-input" data-index="4"></div>
+          <div class="ext-input-group"><label>D20</label><input type="number" min="1" max="20" value="20" class="ext-input" data-index="5"></div>
+        </div>
+
+        <div class="ext-actions">
+          <button class="btn btn-primary" id="extUpdateBtn">Update Values</button>
+          <button class="btn btn-accent" id="extRollBtn">🚀 ROLL DICE in Google</button>
+        </div>
+      </section>
+
+      <!-- CONTROLS -->
+      <section class="card" id="controlsCard">
+        <div class="card-label">Set Total</div>
+        <div class="control-row">
+          <div class="slider-wrap">
+            <input type="range" id="totalSlider" min="9" max="54" value="9" aria-label="Total slider" />
+            <div class="slider-labels"><span>9</span><span>54</span></div>
+          </div>
+          <input type="number" id="totalInput" class="number-input" min="9" max="54" value="9" aria-label="Total number input" />
+        </div>
+        <div class="presets" id="presets">
+          <button class="preset-btn" data-value="9"  data-tooltip="Minimum — semua dadu ⚀">9</button>
+          <button class="preset-btn" data-value="18" data-tooltip="Rata-rata 2 per dadu">18</button>
+          <button class="preset-btn" data-value="27" data-tooltip="Rata-rata 3 per dadu">27</button>
+          <button class="preset-btn" data-value="36" data-tooltip="Rata-rata 4 per dadu">36</button>
+          <button class="preset-btn" data-value="45" data-tooltip="Rata-rata 5 per dadu">45</button>
+          <button class="preset-btn" data-value="54" data-tooltip="Maximum — semua dadu ⚅">54</button>
+        </div>
+      </section>
+
+      <!-- DISTRIBUTION SUMMARY -->
+      <section class="card" id="distCard">
+        <div class="card-label">Distribution</div>
+        <div class="dist-grid" id="distGrid"></div>
+      </section>
+
+      <!-- ADVANCED: Tabs for Webhooks & History -->
+      <section class="card" id="advancedCard">
+        <div class="tabs">
+          <button class="tab active" data-tab="history">📜 History</button>
+          <button class="tab" data-tab="webhooks">🔗 Webhooks</button>
+          <button class="tab" data-tab="users" id="usersTabBtn" style="display:none">👥 Users</button>
+        </div>
+
+        <div class="tab-content active" id="tab-history">
+          <div class="history-list" id="historyList">
+            <div class="empty-state">
+              <div class="empty-icon">📭</div>
+              <div>Belum ada riwayat perubahan</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tab-content" id="tab-webhooks">
+          <div class="webhook-create-row">
+            <input type="url" id="newWebhookUrl" placeholder="https://example.com/webhook" />
+            <button class="btn btn-accent" id="addWebhookBtn">+ Tambah</button>
+          </div>
+          <div class="webhook-list" id="webhookList">
+            <div class="empty-state">
+              <div class="empty-icon">🔕</div>
+              <div>Belum ada webhook terdaftar</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- USERS TAB (Admin Only) -->
+        <div class="tab-content" id="tab-users">
+          <div style="background: rgba(15,23,42,0.5); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border-subtle); margin-bottom: 1rem;">
+            <div style="font-size: 0.8rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--text-secondary);">Tambah API Key Baru</div>
+            <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem; flex-wrap: wrap;">
+              <input type="text" id="newUserName" placeholder="Nama (e.g. Budi)" class="apikey-input" style="flex:1; min-width:120px;" maxlength="30" />
+              <input type="text" id="newUserDevice" placeholder="Device (e.g. HP Budi)" class="apikey-input" style="flex:1; min-width:120px;" maxlength="30" />
+            </div>
+            <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+              <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; color: var(--text-primary); cursor: pointer; flex: 1;">
+                <input type="checkbox" id="newUserPerm" checked style="accent-color: var(--accent); width: 16px; height: 16px;" />
+                Berikan izin write (Admin)
+              </label>
+              <button class="btn btn-accent" id="createUserBtn">+ Buat Key</button>
+            </div>
+          </div>
+          <div class="webhook-list" id="usersList">
+            <!-- Reusing webhook-list classes for generic list styling -->
+            <div class="empty-state">
+              <div class="spinner" style="margin: 0 auto;"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div><!-- /main-content -->
+
+    <!-- FOOTER -->
+    <footer class="footer" id="footer">
+      <span class="health-dot" id="healthDot"></span>
+      Server <span id="healthStatus">checking…</span>
+    </footer>
+
+  </div>
+
+  <script>
+    // ─── Constants ─────────────────────────────────
+    const DICE_FACES = ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+    const API_URL = '/api/total';
+    const HEALTH_URL = '/health';
+    const PROFILES_URL = '/api/profiles';
+    const WEBHOOKS_URL = '/api/webhooks';
+    const HISTORY_URL = '/api/history';
+    const WHOAMI_URL = '/api/whoami';
+    const ADMIN_KEYS_URL = '/api/admin/keys';
+    const LS_KEY = 'dice_dashboard_api_key';
+
+    // ─── DOM References ────────────────────────────
+    const diceGrid        = document.getElementById('diceGrid');
+    const totalNumber     = document.getElementById('totalNumber');
+    const totalSlider     = document.getElementById('totalSlider');
+    const totalInput      = document.getElementById('totalInput');
+    const presets         = document.getElementById('presets');
+    const distGrid        = document.getElementById('distGrid');
+    const toastContainer  = document.getElementById('toastContainer');
+    const loadingOverlay  = document.getElementById('loadingOverlay');
+    const healthDot       = document.getElementById('healthDot');
+    const healthStatus    = document.getElementById('healthStatus');
+    const profileSelect      = document.getElementById('profileSelect');
+    const activateProfileBtn = document.getElementById('activateProfileBtn');
+    const newProfileName     = document.getElementById('newProfileName');
+    const createProfileBtn   = document.getElementById('createProfileBtn');
+    const profileCreateRow   = document.getElementById('profileCreateRow');
+    const profileList        = document.getElementById('profileList');
+    const activeProfileBadge = document.getElementById('activeProfileBadge');
+    const newWebhookUrl  = document.getElementById('newWebhookUrl');
+    const addWebhookBtn  = document.getElementById('addWebhookBtn');
+    const webhookList    = document.getElementById('webhookList');
+    const historyList    = document.getElementById('historyList');
+    // Users (Admin)
+    const usersTabBtn    = document.getElementById('usersTabBtn');
+    const newUserName    = document.getElementById('newUserName');
+    const newUserDevice  = document.getElementById('newUserDevice');
+    const newUserPerm    = document.getElementById('newUserPerm');
+    const createUserBtn  = document.getElementById('createUserBtn');
+    const usersList      = document.getElementById('usersList');
+    // Auth
+    const apiKeyInput    = document.getElementById('apiKeyInput');
+    const connectBtn     = document.getElementById('connectBtn');
+    const disconnectBtn  = document.getElementById('disconnectBtn');
+    const authBadge      = document.getElementById('authBadge');
+    const userPill       = document.getElementById('userPill');
+    const mainContent    = document.getElementById('mainContent');
+
+    // ─── State ─────────────────────────────────────
+    let currentTotal = 9;
+    let currentDistribution = [1,1,1,1,1,1,1,1,1];
+    let currentActiveProfileId = null;
+    let profiles = [];
+    let debounceTimer = null;
+    let isSending = false;
+    let currentApiKey = '';
+    let currentUser = null; // { name, device, apiKey (masked), allowedToChange }
+
+    // ─── Auth Helpers ──────────────────────────────
+
+    /** Build headers object with API key */
+    function authHeaders(extra) {
+      const h = { 'X-API-Key': currentApiKey };
+      if (extra) Object.assign(h, extra);
+      return h;
+    }
+
+    /** Authenticated fetch wrapper */
+    function apiFetch(url, opts = {}) {
+      opts.headers = authHeaders(opts.headers);
+      return fetch(url, opts);
+    }
+
+    // ─── Initialize ────────────────────────────────
+    function init() {
+      buildDiceGrid();
+      buildDistGrid();
+      checkHealth();
+
+      // Restore saved API key from localStorage
+      const savedKey = localStorage.getItem(LS_KEY);
+      if (savedKey) {
+        apiKeyInput.value = savedKey;
+        connectWithKey(savedKey);
+      }
+
+      // Auth events
+      connectBtn.addEventListener('click', onConnect);
+      disconnectBtn.addEventListener('click', onDisconnect);
+      apiKeyInput.addEventListener('keydown', e => { if (e.key === 'Enter') onConnect(); });
+
+      // API Key hint clicks
+      document.querySelectorAll('.apikey-hint').forEach(hint => {
+        hint.addEventListener('click', () => {
+          apiKeyInput.value = hint.dataset.key;
+          onConnect();
+        });
+      });
+
+      // Controls
+      totalSlider.addEventListener('input', onSliderChange);
+      totalInput.addEventListener('change', onInputChange);
+      presets.addEventListener('click', onPresetClick);
+
+      // Profiles
+      activateProfileBtn.addEventListener('click', onActivateProfile);
+      createProfileBtn.addEventListener('click', onCreateProfile);
+      newProfileName.addEventListener('keydown', e => { if (e.key === 'Enter') onCreateProfile(); });
+
+      // Registration
+      document.getElementById('showRegisterBtn').addEventListener('click', (e) => {
+        e.preventDefault();
+        document.getElementById('loginForm').style.display = 'none';
+        document.getElementById('registerForm').style.display = 'block';
+      });
+      document.getElementById('showLoginBtn').addEventListener('click', (e) => {
+        e.preventDefault();
+        document.getElementById('registerForm').style.display = 'none';
+        document.getElementById('loginForm').style.display = 'block';
+      });
+      document.getElementById('doRegisterBtn').addEventListener('click', onRegisterPublic);
+
+      // Webhooks
+      addWebhookBtn.addEventListener('click', onAddWebhook);
+      newWebhookUrl.addEventListener('keydown', e => { if (e.key === 'Enter') onAddWebhook(); });
+
+      // Admin Users
+      createUserBtn.addEventListener('click', onCreateUser);
+
+      // Tabs
+      document.querySelectorAll('.tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+          document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+          tab.classList.add('active');
+          document.getElementById(`tab-${tab.dataset.tab}`).classList.add('active');
+        });
+      });
+    }
+
+    // ─── Auth Flow ─────────────────────────────────
+    function onConnect() {
+      const key = apiKeyInput.value.trim();
+      if (!key) {
+        showToast('Masukkan API Key terlebih dahulu', 'error');
+        apiKeyInput.focus();
+        return;
+      }
+      connectWithKey(key);
+    }
+
+    async function connectWithKey(key) {
+      currentApiKey = key;
+
+      try {
+        const res = await apiFetch(WHOAMI_URL);
+        const data = await res.json();
+
+        if (!res.ok) {
+          currentApiKey = '';
+          currentUser = null;
+          localStorage.removeItem(LS_KEY);
+          updateAuthUI(false);
+          showToast(data.message || 'API Key tidak valid', 'error');
+          return;
+        }
+
+        currentUser = data;
+        localStorage.setItem(LS_KEY, key);
+        updateAuthUI(true);
+        showToast(`✓ Logged in as ${data.name}`, 'success');
+
+        // Load all data
+        fetchCurrentState();
+        fetchProfiles();
+        fetchWebhooks();
+        fetchHistory();
+        if (currentUser.allowedToChange) {
+          fetchUsers();
+        }
+      } catch (err) {
+        showToast('Gagal menghubungi server', 'error');
+      }
+    }
+
+    function onDisconnect() {
+      currentApiKey = '';
+      currentUser = null;
+      localStorage.removeItem(LS_KEY);
+      apiKeyInput.value = '';
+      updateAuthUI(false);
+      showToast('Logged out', 'success');
+    }
+
+    function updateAuthUI(authenticated) {
+      if (authenticated && currentUser) {
+        // Show main content
+        mainContent.classList.add('visible');
+
+        // User pill
+        const permClass = currentUser.allowedToChange ? 'rw' : 'ro';
+        const permLabel = currentUser.allowedToChange ? 'read+write' : 'read-only';
+        userPill.className = 'user-pill';
+        userPill.innerHTML = `
+          <span class="perm-dot ${permClass}"></span>
+          <span class="user-name">${escHtml(currentUser.name)}</span>
+          <span class="user-device">· ${escHtml(currentUser.device)}</span>
+        `;
+        userPill.title = `${currentUser.name} — ${currentUser.device} — ${permLabel} — ${currentUser.apiKey}`;
+
+        // Auth badge
+        authBadge.textContent = `${currentUser.name} · ${currentUser.allowedToChange ? 'read+write' : 'read-only'}`;
+        authBadge.className = 'badge ' + (currentUser.allowedToChange ? 'badge-success' : 'badge-warning');
+
+        // Show/hide buttons
+        connectBtn.style.display = 'none';
+        disconnectBtn.style.display = '';
+        apiKeyInput.disabled = true;
+        apiKeyInput.style.opacity = '0.5';
+
+        // Hide write controls if read-only
+        const canWrite = currentUser.allowedToChange;
+        profileCreateRow.style.display = canWrite ? '' : 'none';
+        activateProfileBtn.style.display = canWrite ? '' : 'none';
+        usersTabBtn.style.display = canWrite ? '' : 'none';
+
+        // Reset tabs to history if users tab was active but now not auth'd as admin
+        if (!canWrite && usersTabBtn.classList.contains('active')) {
+          document.querySelector('[data-tab="history"]').click();
+        }
+      } else {
+        mainContent.classList.remove('visible');
+        userPill.className = 'user-pill not-auth';
+        userPill.innerHTML = '<span class="user-icon">🔒</span><span>Not authenticated</span>';
+        authBadge.textContent = 'Not connected';
+        authBadge.className = 'badge';
+        connectBtn.style.display = '';
+        disconnectBtn.style.display = 'none';
+        apiKeyInput.disabled = false;
+        apiKeyInput.style.opacity = '1';
+      }
+    }
+
+    // ─── Build 9 Dice ──────────────────────────────
+    function buildDiceGrid() {
+      diceGrid.innerHTML = '';
+      for (let i = 0; i < 9; i++) {
+        const die = document.createElement('div');
+        die.className = 'die';
+        die.id = `die-${i}`;
+        die.innerHTML = `<span class="die-face">${DICE_FACES[1]}</span><span class="die-value">1</span>`;
+        diceGrid.appendChild(die);
+      }
+    }
+
+    function buildDistGrid() {
+      distGrid.innerHTML = '';
+      for (let face = 1; face <= 6; face++) {
+        const item = document.createElement('div');
+        item.className = 'dist-item';
+        item.id = `dist-${face}`;
+        item.innerHTML = `
+          <div class="dist-item-header">
+            <span class="dist-face">${DICE_FACES[face]}</span>
+            <span class="dist-count"><span id="distCount-${face}">0</span> dadu</span>
+          </div>
+          <div class="dist-bar-track">
+            <div class="dist-bar-fill" id="distBar-${face}" style="width: 0%"></div>
+          </div>
+        `;
+        distGrid.appendChild(item);
+      }
+    }
+
+    // ─── Render ────────────────────────────────────
+    function renderDice(distribution, animate) {
+      distribution.forEach((val, i) => {
+        const die = document.getElementById(`die-${i}`);
+        const face = die.querySelector('.die-face');
+        const value = die.querySelector('.die-value');
+        if (animate) {
+          die.classList.remove('animate');
+          void die.offsetWidth;
+          die.classList.add('animate');
+        }
+        face.textContent = DICE_FACES[val] || '?';
+        value.textContent = val;
+      });
+    }
+
+    function renderTotal(total) {
+      totalNumber.textContent = total;
+      totalSlider.value = total;
+      totalInput.value = total;
+      updatePresetActive(total);
+    }
+
+    function renderDistribution(distribution) {
+      const counts = [0, 0, 0, 0, 0, 0, 0];
+      distribution.forEach(v => { counts[v]++; });
+      for (let face = 1; face <= 6; face++) {
+        document.getElementById(`distCount-${face}`).textContent = counts[face];
+        document.getElementById(`distBar-${face}`).style.width = `${(counts[face] / 9) * 100}%`;
+      }
+    }
+
+    function updatePresetActive(total) {
+      document.querySelectorAll('.preset-btn').forEach(btn => {
+        btn.classList.toggle('active', Number(btn.dataset.value) === total);
+      });
+    }
+
+    // ─── Profiles Render ───────────────────────────
+    function renderProfiles() {
+      const currentVal = profileSelect.value;
+      profileSelect.innerHTML = '<option value="">— Pilih Profile —</option>';
+      profiles.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = `${p.name} (total: ${p.total})`;
+        profileSelect.appendChild(opt);
+      });
+      profileSelect.value = currentVal;
+
+      const active = profiles.find(p => p.id === currentActiveProfileId);
+      activeProfileBadge.textContent = active ? `Active: ${active.name}` : 'None active';
+
+      if (profiles.length === 0) {
+        profileList.innerHTML = '<div class="empty-state"><div class="empty-icon">📂</div><div>Belum ada profile</div></div>';
+        return;
+      }
+
+      const canWrite = currentUser && currentUser.allowedToChange;
+      profileList.innerHTML = '';
+      profiles.forEach(p => {
+        const item = document.createElement('div');
+        item.className = 'profile-item' + (p.id === currentActiveProfileId ? ' active-profile' : '');
+        item.innerHTML = `
+          <span class="profile-name">${escHtml(p.name)}</span>
+          <span class="profile-total">Total: ${p.total}</span>
+          ${canWrite ? `
+          <div class="profile-actions">
+            <button class="btn btn-ghost" data-activate="${p.id}" title="Activate">▶</button>
+            <button class="btn btn-danger" data-delete="${p.id}" title="Delete">✕</button>
+          </div>` : ''}
+        `;
+        profileList.appendChild(item);
+      });
+
+      if (canWrite) {
+        profileList.querySelectorAll('[data-activate]').forEach(btn => {
+          btn.addEventListener('click', () => activateProfile(btn.dataset.activate));
+        });
+        profileList.querySelectorAll('[data-delete]').forEach(btn => {
+          btn.addEventListener('click', () => deleteProfile(btn.dataset.delete));
+        });
+      }
+    }
+
+    function renderWebhooks(webhooks) {
+      const canWrite = currentUser && currentUser.allowedToChange;
+      if (!webhooks || webhooks.length === 0) {
+        webhookList.innerHTML = '<div class="empty-state"><div class="empty-icon">🔕</div><div>Belum ada webhook terdaftar</div></div>';
+        return;
+      }
+      webhookList.innerHTML = '';
+      webhooks.forEach(w => {
+        const item = document.createElement('div');
+        item.className = 'webhook-item';
+        item.innerHTML = `
+          <span class="webhook-url" title="${escHtml(w.url)}">${escHtml(w.url)}</span>
+          ${canWrite ? `<button class="btn btn-danger" data-delete-wh="${w.id}" title="Remove">✕</button>` : ''}
+        `;
+        webhookList.appendChild(item);
+      });
+      if (canWrite) {
+        webhookList.querySelectorAll('[data-delete-wh]').forEach(btn => {
+          btn.addEventListener('click', () => deleteWebhook(btn.dataset.deleteWh));
+        });
+      }
+    }
+
+    function renderHistory(history) {
+      if (!history || history.length === 0) {
+        historyList.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><div>Belum ada riwayat perubahan</div></div>';
+        return;
+      }
+      historyList.innerHTML = '';
+      history.forEach(h => {
+        const d = new Date(h.timestamp);
+        const time = d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const item = document.createElement('div');
+        item.className = 'history-item';
+        item.innerHTML = `
+          <span class="history-time">${time}</span>
+          <span class="history-change">
+            <span class="history-old">${h.previousTotal}</span>
+            <span class="history-arrow">→</span>
+            <span class="history-new">${h.newTotal}</span>
+          </span>
+          ${h.changedBy ? `<span class="history-user">${escHtml(h.changedBy)}</span>` : ''}
+          <span class="history-ip">${escHtml(h.ip || '')}</span>
+        `;
+        historyList.appendChild(item);
+      });
+    }
+
+    // ─── Loading & Toast ───────────────────────────
+    function setLoading(loading) {
+      isSending = loading;
+      loadingOverlay.classList.toggle('visible', loading);
+    }
+
+    function showToast(message, type) {
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.textContent = message;
+      toastContainer.appendChild(toast);
+      setTimeout(() => {
+        toast.classList.add('fade-out');
+        setTimeout(() => toast.remove(), 300);
+      }, 2500);
+    }
+
+    function escHtml(str) {
+      if (!str) return '';
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    // ─── API Calls (all use apiFetch for auth) ─────
+
+    async function fetchCurrentState() {
+      try {
+        const res = await apiFetch(API_URL);
+        if (!res.ok) { handleApiError(res); return; }
+        const data = await res.json();
+        currentTotal = data.total;
+        currentDistribution = data.distribution;
+        currentActiveProfileId = data.activeProfileId || null;
+        renderTotal(currentTotal);
+        renderDice(currentDistribution, false);
+        renderDistribution(currentDistribution);
+      } catch (err) {
+        showToast('Gagal memuat data dari server', 'error');
+      }
+    }
+
+    async function sendTotal(total) {
+      if (isSending) return;
+      if (currentUser && !currentUser.allowedToChange) {
+        showToast('Anda tidak memiliki izin mengubah total', 'error');
+        return;
+      }
+      setLoading(true);
+      try {
+        const res = await apiFetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ total })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          showToast(data.message || data.error || 'Terjadi kesalahan', 'error');
+          setLoading(false);
+          return;
+        }
+        currentTotal = data.total;
+        currentDistribution = data.distribution;
+        currentActiveProfileId = data.activeProfileId || null;
+        renderDice(currentDistribution, true);
+        renderDistribution(currentDistribution);
+        renderTotal(currentTotal);
+        renderProfiles();
+        fetchHistory();
+        showToast('✓ Updated successfully', 'success');
+      } catch (err) {
+        showToast('Gagal mengirim data ke server', 'error');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    async function checkHealth() {
+      try {
+        const res = await fetch(HEALTH_URL); // no auth needed
+        const data = await res.json();
+        if (data.status === 'ok') {
+          healthDot.style.background = 'var(--success)';
+          healthStatus.textContent = 'healthy';
+        } else {
+          healthDot.style.background = 'var(--error)';
+          healthStatus.textContent = 'unhealthy';
+        }
+      } catch {
+        healthDot.style.background = 'var(--error)';
+        healthStatus.textContent = 'unreachable';
+      }
+    }
+
+    async function fetchProfiles() {
+      try {
+        const res = await apiFetch(PROFILES_URL);
+        if (!res.ok) return;
+        const data = await res.json();
+        profiles = data.profiles || [];
+        currentActiveProfileId = data.activeProfileId || null;
+        renderProfiles();
+      } catch (err) {
+        showToast('Gagal memuat profiles', 'error');
+      }
+    }
+
+    async function activateProfile(id) {
+      if (isSending) return;
+      setLoading(true);
+      try {
+        const res = await apiFetch(`${PROFILES_URL}/${id}/activate`, { method: 'PUT' });
+        const data = await res.json();
+        if (!res.ok) {
+          showToast(data.message || data.error || 'Gagal mengaktifkan profile', 'error');
+          setLoading(false);
+          return;
+        }
+        currentTotal = data.total;
+        currentDistribution = data.distribution;
+        currentActiveProfileId = data.activeProfileId || null;
+        renderDice(currentDistribution, true);
+        renderDistribution(currentDistribution);
+        renderTotal(currentTotal);
+        renderProfiles();
+        fetchHistory();
+        showToast(`✓ Profile "${data.activatedProfile}" activated`, 'success');
+      } catch (err) {
+        showToast('Gagal mengaktifkan profile', 'error');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    async function deleteProfile(id) {
+      try {
+        const res = await apiFetch(`${PROFILES_URL}/${id}`, { method: 'DELETE' });
+        if (!res.ok) { const d = await res.json(); showToast(d.message || d.error, 'error'); return; }
+        profiles = profiles.filter(p => p.id !== id);
+        if (currentActiveProfileId === id) currentActiveProfileId = null;
+        renderProfiles();
+        showToast('✓ Profile deleted', 'success');
+      } catch (err) {
+        showToast('Gagal menghapus profile', 'error');
+      }
+    }
+
+    function onActivateProfile() {
+      const id = profileSelect.value;
+      if (!id) { showToast('Pilih profile terlebih dahulu', 'error'); return; }
+      activateProfile(id);
+    }
+
+    async function onCreateProfile() {
+      const name = newProfileName.value.trim();
+      if (!name) { showToast('Nama profile tidak boleh kosong', 'error'); newProfileName.focus(); return; }
+      try {
+        const res = await apiFetch(PROFILES_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, total: currentTotal })
+        });
+        const data = await res.json();
+        if (!res.ok) { showToast(data.message || data.error, 'error'); return; }
+        profiles.push(data);
+        newProfileName.value = '';
+        renderProfiles();
+        showToast(`✓ Profile "${data.name}" created (total: ${data.total})`, 'success');
+      } catch (err) {
+        showToast('Gagal membuat profile', 'error');
+      }
+    }
+
+    async function fetchWebhooks() {
+      try {
+        const res = await apiFetch(WEBHOOKS_URL);
+        if (!res.ok) return;
+        const data = await res.json();
+        renderWebhooks(data.webhooks || []);
+      } catch (err) {
+        showToast('Gagal memuat webhooks', 'error');
+      }
+    }
+
+    async function onAddWebhook() {
+      const urlVal = newWebhookUrl.value.trim();
+      if (!urlVal) { showToast('URL webhook tidak boleh kosong', 'error'); newWebhookUrl.focus(); return; }
+      try {
+        const res = await apiFetch(WEBHOOKS_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: urlVal })
+        });
+        const data = await res.json();
+        if (!res.ok) { showToast(data.message || data.error, 'error'); return; }
+        newWebhookUrl.value = '';
+        fetchWebhooks();
+        showToast('✓ Webhook registered', 'success');
+      } catch (err) {
+        showToast('Gagal menambah webhook', 'error');
+      }
+    }
+
+    async function deleteWebhook(id) {
+      try {
+        const res = await apiFetch(`${WEBHOOKS_URL}/${id}`, { method: 'DELETE' });
+        if (!res.ok) { const d = await res.json(); showToast(d.message || d.error, 'error'); return; }
+        fetchWebhooks();
+        showToast('✓ Webhook removed', 'success');
+      } catch (err) {
+        showToast('Gagal menghapus webhook', 'error');
+      }
+    }
+
+    async function fetchHistory() {
+      try {
+        const res = await apiFetch(`${HISTORY_URL}?limit=50`);
+        if (!res.ok) return;
+        const data = await res.json();
+        renderHistory(data.history || []);
+      } catch (err) { /* silent */ }
+    }
+
+    async function handleApiError(res) {
+      try {
+        const data = await res.json();
+        if (res.status === 401) {
+          onDisconnect();
+          showToast(data.message || 'Session expired', 'error');
+        } else {
+          showToast(data.message || data.error || 'Error', 'error');
+        }
+      } catch { showToast('Server error', 'error'); }
+    }
+
+    // ─── Event Handlers ────────────────────────────
+    function onSliderChange(e) {
+      const val = Number(e.target.value);
+      totalInput.value = val;
+      totalNumber.textContent = val;
+      updatePresetActive(val);
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => sendTotal(val), 300);
+    }
+
+    function onInputChange(e) {
+      let val = Number(e.target.value);
+      if (isNaN(val) || val < 9 || val > 54) {
+        showToast('Total harus antara 9–54', 'error');
+        e.target.value = currentTotal;
+        return;
+      }
+      val = Math.round(val);
+      totalSlider.value = val;
+      totalNumber.textContent = val;
+      updatePresetActive(val);
+      sendTotal(val);
+    }
+
+    function onPresetClick(e) {
+      const btn = e.target.closest('.preset-btn');
+      if (!btn) return;
+      const val = Number(btn.dataset.value);
+      totalSlider.value = val;
+      totalInput.value = val;
+      totalNumber.textContent = val;
+      updatePresetActive(val);
+      sendTotal(val);
+    }
+
+    // ─── Admin Users API ───────────────────────────
+    async function fetchUsers() {
+      try {
+        const res = await apiFetch(ADMIN_KEYS_URL);
+        if (!res.ok) return;
+        const data = await res.json();
+        renderUsers(data.users || []);
+      } catch (err) {
+        showToast('Gagal memuat daftar users', 'error');
+      }
+    }
+
+    function renderUsers(users) {
+      if (!users || users.length === 0) {
+        usersList.innerHTML = '<div class="empty-state"><div class="empty-icon">👥</div><div>Belum ada user</div></div>';
+        return;
+      }
+      usersList.innerHTML = '';
+      users.forEach(u => {
+        const item = document.createElement('div');
+        item.className = 'webhook-item'; // Reusing webhook list style for simplicity
+        
+        const isSelf = u.apiKey.indexOf('***') === -1 ? 
+          currentUser.apiKey === u.apiKey : 
+          false; // If it's masked we can't be sure, but we prevent self-delete on backend anyway
+
+        const badgeClass = u.allowedToChange ? 'badge-success' : 'badge-warning';
+        const badgeText = u.allowedToChange ? 'Admin' : 'Read-only';
+
+        item.innerHTML = `
+          <div style="flex: 1; display: flex; flex-direction: column; gap: 2px; overflow: hidden;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary);">${escHtml(u.name)}</span>
+              <span class="badge ${badgeClass}" style="font-size: 0.55rem; padding: 1px 6px;">${badgeText}</span>
+            </div>
+            <div style="font-size: 0.7rem; color: var(--text-muted); display: flex; gap: 8px;">
+              <span>📱 ${escHtml(u.device)}</span>
+              <span style="font-family: monospace; color: var(--text-secondary);">🔑 ${escHtml(u.apiKey)}</span>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap: 0.75rem;">
+            ${isSelf ? '' : `
+              <label style="display: flex; align-items: center; gap: 0.3rem; font-size: 0.7rem; color: var(--text-secondary); cursor: pointer;">
+                <input type="checkbox" data-toggle-perm="${escHtml(u.apiKey)}" ${u.allowedToChange ? 'checked' : ''} style="accent-color: var(--accent);" />
+                Admin
+              </label>
+              <button class="btn btn-danger" data-delete-user="${escHtml(u.apiKey)}" title="Delete User">✕</button>
+            `}
+          </div>
+        `;
+        usersList.appendChild(item);
+      });
+
+      usersList.querySelectorAll('[data-delete-user]').forEach(btn => {
+        btn.addEventListener('click', () => deleteUser(btn.dataset.deleteUser));
+      });
+
+      usersList.querySelectorAll('[data-toggle-perm]').forEach(chk => {
+        chk.addEventListener('change', (e) => updateUserPermission(chk.dataset.togglePerm, e.target.checked));
+      });
+    }
+
+    async function updateUserPermission(apiKey, allowedToChange) {
+      setLoading(true);
+      try {
+        const res = await apiFetch(`${ADMIN_KEYS_URL}/${encodeURIComponent(apiKey)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ allowedToChange })
+        });
+        const data = await res.json();
+        
+        if (!res.ok) {
+          showToast(data.message || data.error, 'error');
+          fetchUsers(); // revert checkbox
+          return;
+        }
+        
+        fetchUsers();
+        showToast(`✓ Izin ${data.user.name} diperbarui`, 'success');
+      } catch (err) {
+        showToast('Gagal mengubah izin', 'error');
+        fetchUsers(); // revert
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    async function onCreateUser() {
+      const name = newUserName.value.trim();
+      const device = newUserDevice.value.trim();
+      const allowedToChange = newUserPerm.checked;
+
+      if (!name || !device) {
+        showToast('Nama dan Device wajib diisi', 'error');
+        if (!name) newUserName.focus();
+        else newUserDevice.focus();
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const res = await apiFetch(ADMIN_KEYS_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, device, allowedToChange })
+        });
+        const data = await res.json();
+        
+        if (!res.ok) {
+          showToast(data.message || data.error, 'error');
+          return;
+        }
+
+        // Show the new key to the admin in a toast that doesn't disappear immediately
+        alert(`Berhasil membuat API Key untuk ${data.name}!\n\nAPI KEY: ${data.apiKey}\n\nHarap copy dan simpan key ini karena tidak akan ditampilkan penuh lagi.`);
+        
+        newUserName.value = '';
+        newUserDevice.value = '';
+        newUserPerm.checked = true;
+        fetchUsers();
+      } catch (err) {
+        showToast('Gagal membuat user', 'error');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    async function deleteUser(apiKey) {
+      if (!confirm('Apakah Anda yakin ingin menghapus user ini? Mereka tidak akan bisa login lagi.')) return;
+      
+      setLoading(true);
+      try {
+        const res = await apiFetch(`${ADMIN_KEYS_URL}/${encodeURIComponent(apiKey)}`, { method: 'DELETE' });
+        const data = await res.json();
+        
+        if (!res.ok) {
+          showToast(data.message || data.error, 'error');
+          return;
+        }
+        
+        fetchUsers();
+        showToast(`✓ User ${data.deleted.name} dihapus`, 'success');
+      } catch (err) {
+        showToast('Gagal menghapus user', 'error');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    async function onRegisterPublic() {
+      const name = document.getElementById('regUserName').value.trim();
+      const device = document.getElementById('regUserDevice').value.trim();
+
+      if (!name || !device) {
+        showToast('Nama dan Device wajib diisi', 'error');
+        if (!name) document.getElementById('regUserName').focus();
+        else document.getElementById('regUserDevice').focus();
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const res = await fetch('/api/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, device })
+        });
+        const data = await res.json();
+        
+        if (!res.ok) {
+          showToast(data.message || data.error, 'error');
+          return;
+        }
+
+        alert(`Registrasi Berhasil!\n\nAPI KEY ANDA: ${data.apiKey}\n\nKey ini akan otomatis diisi. Harap simpan key ini baik-baik!`);
+        
+        document.getElementById('regUserName').value = '';
+        document.getElementById('regUserDevice').value = '';
+        
+        // Go back to login form and auto connect
+        document.getElementById('registerForm').style.display = 'none';
+        document.getElementById('loginForm').style.display = 'block';
+        apiKeyInput.value = data.apiKey;
+        onConnect();
+
+      } catch (err) {
+        showToast('Gagal melakukan registrasi', 'error');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    // ─── Extension Controller Logic ────────────────────────────
+    const extDatasetRadios = document.querySelectorAll('input[name="dataset"]');
+    const extInputsGrid1 = document.getElementById('extInputsGrid1');
+    const extInputsGrid2 = document.getElementById('extInputsGrid2');
+    const extInputs1 = extInputsGrid1.querySelectorAll('.ext-input');
+    const extInputs2 = extInputsGrid2.querySelectorAll('.ext-input');
+    const extEnabledToggle = document.getElementById('extEnabledToggle');
+    const extUpdateBtn = document.getElementById('extUpdateBtn');
+    const extRollBtn = document.getElementById('extRollBtn');
+
+    let currentExtState = {
+      activeDataset: 1,
+      dataset1: [2, 6, 2, 5, 1, 6, 1, 3, 2],
+      dataset2: [4, 6, 8, 10, 12, 20],
+      enabled: true
+    };
+
+    function updateExtUIFromState(state) {
+      if (!state) return;
+      currentExtState = { ...currentExtState, ...state };
+      
+      extEnabledToggle.checked = currentExtState.enabled;
+      
+      // Update radios
+      extDatasetRadios.forEach(r => {
+        r.checked = (parseInt(r.value) === currentExtState.activeDataset);
+      });
+      
+      // Toggle grids
+      if (currentExtState.activeDataset === 1) {
+        extInputsGrid1.style.display = 'grid';
+        extInputsGrid2.style.display = 'none';
+      } else {
+        extInputsGrid1.style.display = 'none';
+        extInputsGrid2.style.display = 'grid';
+      }
+
+      // Update inputs dataset1
+      if (currentExtState.dataset1 && currentExtState.dataset1.length === 9) {
+        extInputs1.forEach((input, i) => {
+          input.value = currentExtState.dataset1[i];
+        });
+      }
+      
+      // Update inputs dataset2
+      if (currentExtState.dataset2 && currentExtState.dataset2.length === 6) {
+        extInputs2.forEach((input, i) => {
+          input.value = currentExtState.dataset2[i];
+        });
+      }
+    }
+
+    async function fetchExtState() {
+      try {
+        const res = await apiFetch('/api/dice-state');
+        if (res.ok) {
+          const state = await res.json();
+          updateExtUIFromState(state);
+        }
+      } catch (err) { /* silent */ }
+    }
+
+    async function saveExtState() {
+      if (!authKey) return;
+      
+      const activeDataset = parseInt(document.querySelector('input[name="dataset"]:checked').value);
+      const dataset1 = Array.from(extInputs1).map(inp => parseInt(inp.value) || 1);
+      const dataset2 = Array.from(extInputs2).map(inp => parseInt(inp.value) || 1);
+      const enabled = extEnabledToggle.checked;
+
+      setLoading(true);
+      try {
+        const res = await apiFetch('/api/dice-state', {
+          method: 'POST',
+          body: JSON.stringify({ activeDataset, dataset1, dataset2, enabled })
+        });
+        
+        if (res.ok) {
+          const state = await res.json();
+          updateExtUIFromState(state);
+          showToast('✓ Extension state updated', 'success');
+        } else {
+          handleApiError(res);
+        }
+      } catch (err) {
+        showToast('Failed to update extension state', 'error');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    async function triggerExtRoll() {
+      if (!authKey) return;
+      setLoading(true);
+      try {
+        const res = await apiFetch('/api/roll', { method: 'POST' });
+        if (res.ok) {
+          showToast('🚀 Roll command sent to extension!', 'success');
+        } else {
+          handleApiError(res);
+        }
+      } catch (err) {
+        showToast('Failed to send roll command', 'error');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    // Ext Events
+    extDatasetRadios.forEach(r => {
+      r.addEventListener('change', () => {
+        if (r.value === '1') {
+          extInputsGrid1.style.display = 'grid';
+          extInputsGrid2.style.display = 'none';
+        } else {
+          extInputsGrid1.style.display = 'none';
+          extInputsGrid2.style.display = 'grid';
+        }
+      });
+    });
+
+    extUpdateBtn.addEventListener('click', saveExtState);
+    extRollBtn.addEventListener('click', triggerExtRoll);
+    extEnabledToggle.addEventListener('change', saveExtState);
+
+    // Override onConnect to also fetch extension state
+    const originalOnConnect = onConnect;
+    onConnect = async function() {
+      // First, get the key so apiFetch works
+      authKey = apiKeyInput.value.trim();
+      if (!authKey) {
+        showToast('API Key dibutuhkan', 'error');
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const res = await apiFetch(`${DATA_URL}`);
+        if (!res.ok) {
+          showToast('API Key tidak valid atau server error', 'error');
+          authKey = null;
+          setLoading(false);
+          return;
+        }
+        
+        const data = await res.json();
+        
+        // Setup original data
+        currentTotal = data.total;
+        totalSlider.value = currentTotal;
+        totalInput.value = currentTotal;
+        totalNumber.textContent = currentTotal;
+        updatePresetActive(currentTotal);
+        
+        // UI transitions
+        document.getElementById('loginForm').style.display = 'none';
+        document.getElementById('registerForm').style.display = 'none';
+        document.getElementById('mainContent').classList.add('visible');
+        
+        // Render
+        renderDice(data.distribution);
+        renderDistribution(data.distribution);
+        renderProfiles(data.profiles, data.activeProfileId);
+        
+        // Fetch background stuff
+        fetchHistory();
+        fetchUsers();
+        fetchWebhooks();
+        fetchExtState(); // NEW: Fetch extension state
+        
+        showToast('Terhubung!', 'success');
+      } catch (err) {
+        showToast('Gagal terhubung ke server', 'error');
+        authKey = null;
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    // ─── Boot ──────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+
+</body>
+</html>
