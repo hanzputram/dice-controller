@@ -14,21 +14,22 @@
 // ================================================================
 
 (function () {
-  'use strict';
+  "use strict";
 
   // ─── CONFIG ──────────────────────────────────────────────────────────
   // PENTING UNTUK MOBILE (HP):
   // 1. Ganti SERVER_URL dengan link public Anda (misal dari Ngrok)
   //    Contoh: const SERVER_URL = 'https://abcd.ngrok-free.app';
   // 2. Ganti API_KEY dengan API Key milik HP tersebut yang didaftarkan di Dashboard.
-  const SERVER_URL = 'http://localhost:3000';
-  const API_KEY = 'key-laptop-rumah';
+  const SERVER_URL =
+    "https://cemetery-scoring-circles-downloads.trycloudflare.com";
+  const API_KEY = "key-laptop-rumah";
   const POLL_INTERVAL = 500; // ms
 
   // ─── STATE ───────────────────────────────────────────────────────────
   const state = {
     enabled: true,
-    values: [],       // Will be filled from server's distribution
+    values: [], // Will be filled from server's distribution
     rollIndex: 0,
     maxFaces: 6,
     isRollingWindow: false, // True for 3s after clicking Lempar
@@ -39,29 +40,40 @@
   // ─── INTERCEPT ROLL BUTTON CLICK ─────────────────────────────────────
   // We only activate the override for a short window after the user clicks
   // the Lempar/Roll button. This bypasses the need to count the dice.
-  if (typeof window !== 'undefined') {
-    window.addEventListener('click', (e) => {
-      let el = e.target;
-      while (el && el !== document) {
-        const aria = (el.getAttribute('aria-label') || '').toLowerCase();
-        const text = (el.textContent || '').trim().toLowerCase();
-        
-        if (aria === 'lempar' || aria === 'roll' || text === 'lempar' || text === 'roll') {
-          state.rollIndex = 0;
-          state.isRollingWindow = true;
-          console.log('[DiceCtrl] 🚀 LEMPAR CLICKED! Override activated for 3 seconds.');
-          
-          clearTimeout(rollWindowTimeout);
-          rollWindowTimeout = setTimeout(() => {
-            state.isRollingWindow = false;
-            console.log('[DiceCtrl] 🛑 Override window closed.');
-          }, 3000); // 3-second window to cover the roll calculation
-          
-          break;
+  if (typeof window !== "undefined") {
+    window.addEventListener(
+      "click",
+      (e) => {
+        let el = e.target;
+        while (el && el !== document) {
+          const aria = (el.getAttribute("aria-label") || "").toLowerCase();
+          const text = (el.textContent || "").trim().toLowerCase();
+
+          if (
+            aria === "lempar" ||
+            aria === "roll" ||
+            text === "lempar" ||
+            text === "roll"
+          ) {
+            state.rollIndex = 0;
+            state.isRollingWindow = true;
+            console.log(
+              "[DiceCtrl] 🚀 LEMPAR CLICKED! Override activated for 3 seconds.",
+            );
+
+            clearTimeout(rollWindowTimeout);
+            rollWindowTimeout = setTimeout(() => {
+              state.isRollingWindow = false;
+              console.log("[DiceCtrl] 🛑 Override window closed.");
+            }, 3000); // 3-second window to cover the roll calculation
+
+            break;
+          }
+          el = el.parentNode;
         }
-        el = el.parentNode;
-      }
-    }, true);
+      },
+      true,
+    );
   }
 
   // ─── OVERRIDE Math.random() — THE CORE MECHANISM ─────────────────────
@@ -69,7 +81,12 @@
 
   Math.random = function () {
     // ONLY override if enabled, we have values, AND we are within the Roll window
-    if (!state.enabled || !state.values || state.values.length === 0 || !state.isRollingWindow) {
+    if (
+      !state.enabled ||
+      !state.values ||
+      state.values.length === 0 ||
+      !state.isRollingWindow
+    ) {
       return _originalRandom.call(Math);
     }
 
@@ -88,7 +105,7 @@
 
     console.log(
       `%c[DiceCtrl] Math.random() OVERRIDDEN → value: ${clamped} (index: ${idx})`,
-      'color: #00ff88; font-size: 11px;'
+      "color: #00ff88; font-size: 11px;",
     );
 
     return result;
@@ -98,7 +115,12 @@
   if (window.crypto && window.crypto.getRandomValues) {
     const _origCrypto = window.crypto.getRandomValues.bind(window.crypto);
     window.crypto.getRandomValues = function (arr) {
-      if (!state.enabled || !state.values || state.values.length === 0 || !state.isRollingWindow) {
+      if (
+        !state.enabled ||
+        !state.values ||
+        state.values.length === 0 ||
+        !state.isRollingWindow
+      ) {
         return _origCrypto(arr);
       }
 
@@ -128,7 +150,7 @@
   async function pollServer() {
     try {
       const res = await fetch(`${SERVER_URL}/api/total`, {
-        headers: { 'X-API-Key': API_KEY },
+        headers: { "X-API-Key": API_KEY },
       });
       if (!res.ok) return;
 
@@ -140,8 +162,8 @@
         if (newVals !== oldVals) {
           state.values = [...data.distribution];
           console.log(
-            `%c[DiceCtrl] Values synced from dashboard: [${state.values.join(',')}] (total: ${data.total})`,
-            'color: #00ff88;'
+            `%c[DiceCtrl] Values synced from dashboard: [${state.values.join(",")}] (total: ${data.total})`,
+            "color: #00ff88;",
           );
         }
       }
@@ -155,8 +177,8 @@
     setInterval(pollServer, POLL_INTERVAL);
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', startPolling);
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", startPolling);
   } else {
     startPolling();
   }
@@ -164,7 +186,7 @@
   window.__diceCtrl = state;
 
   console.log(
-    '%c[DiceCtrl] v6.0 loaded — Time-Window Mode (No Dice Counting Needed)',
-    'color: #00ff88; font-weight: bold; font-size: 13px;'
+    "%c[DiceCtrl] v6.0 loaded — Time-Window Mode (No Dice Counting Needed)",
+    "color: #00ff88; font-weight: bold; font-size: 13px;",
   );
 })();
