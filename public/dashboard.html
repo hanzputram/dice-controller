@@ -2132,54 +2132,18 @@
     // Override onConnect to also fetch extension state
     const originalOnConnect = onConnect;
     onConnect = async function() {
-      // First, get the key so apiFetch works
-      authKey = apiKeyInput.value.trim();
-      if (!authKey) {
+      const key = apiKeyInput.value.trim();
+      if (!key) {
         showToast('API Key dibutuhkan', 'error');
         return;
       }
-
-      setLoading(true);
-      try {
-        const res = await apiFetch(`${DATA_URL}`);
-        if (!res.ok) {
-          showToast('API Key tidak valid atau server error', 'error');
-          authKey = null;
-          setLoading(false);
-          return;
-        }
-        
-        const data = await res.json();
-        
-        // Setup original data
-        currentTotal = data.total;
-        totalSlider.value = currentTotal;
-        totalInput.value = currentTotal;
-        totalNumber.textContent = currentTotal;
-        updatePresetActive(currentTotal);
-        
-        // UI transitions
-        document.getElementById('loginForm').style.display = 'none';
-        document.getElementById('registerForm').style.display = 'none';
-        document.getElementById('mainContent').classList.add('visible');
-        
-        // Render
-        renderDice(data.distribution);
-        renderDistribution(data.distribution);
-        renderProfiles(data.profiles, data.activeProfileId);
-        
-        // Fetch background stuff
-        fetchHistory();
-        fetchUsers();
-        fetchWebhooks();
-        fetchExtState(); // NEW: Fetch extension state
-        
-        showToast('Terhubung!', 'success');
-      } catch (err) {
-        showToast('Gagal terhubung ke server', 'error');
-        authKey = null;
-      } finally {
-        setLoading(false);
+      
+      // We call the original robust connectWithKey logic
+      await connectWithKey(key);
+      
+      // If it succeeded, we also fetch extension state
+      if (currentUser) {
+        fetchExtState();
       }
     };
 
