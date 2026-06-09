@@ -160,10 +160,7 @@ function verifyApiKey(req, res, next) {
 
 function getDefaultData() {
   return {
-    total: 9,
-    distribution: [1, 1, 1, 1, 1, 1, 1, 1, 1],
-    isValid: true,
-    activeProfileId: null,
+    devices: {}, // apiKey -> { total, distribution, isValid, activeProfileId }
     profiles: [
       { id: 'preset-menang', name: 'Menang', total: 54, distribution: [6,6,6,6,6,6,6,6,6], createdAt: new Date().toISOString() },
       { id: 'preset-kalah',  name: 'Kalah',  total: 9,  distribution: [1,1,1,1,1,1,1,1,1], createdAt: new Date().toISOString() },
@@ -182,8 +179,27 @@ function initDataFile() {
     // Migrate: add missing fields to existing data
     const data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
     let changed = false;
+    
+    if (!data.devices) {
+      data.devices = {};
+      const users = readUsers();
+      users.forEach(u => {
+        data.devices[u.apiKey] = {
+          total: data.total || 9,
+          distribution: data.distribution || [1,1,1,1,1,1,1,1,1],
+          isValid: data.isValid !== undefined ? data.isValid : true,
+          activeProfileId: data.activeProfileId || null
+        };
+      });
+      // clean up old root properties
+      delete data.total;
+      delete data.distribution;
+      delete data.isValid;
+      delete data.activeProfileId;
+      changed = true;
+    }
+    
     if (!data.profiles) { data.profiles = getDefaultData().profiles; changed = true; }
-    if (data.activeProfileId === undefined) { data.activeProfileId = null; changed = true; }
     if (!data.webhooks) { data.webhooks = []; changed = true; }
     if (!data.history) { data.history = []; changed = true; }
     if (changed) fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
@@ -225,20 +241,22 @@ function calculateDistribution(total) {
   const dice = new Array(9).fill(1);
   let remaining = total - 9; // points to distribute beyond the base of 1 each
 
-  // Distribute evenly: each die gets floor(remaining/9) extra, some get +1
-  const extraPerDie = Math.floor(remaining / 9);
-  const leftover = remaining % 9;
-
-  for (let i = 0; i < 9; i++) {
-    dice[i] += extraPerDie;
-    if (i < leftover) {
-      dice[i] += 1;
+  // Randomly distribute the remaining points
+  while (remaining > 0) {
+    // Find all indices that can still be incremented (value < 6)
+    const validIndices = [];
+    for (let i = 0; i < 9; i++) {
+      if (dice[i] < 6) validIndices.push(i);
     }
+    
+    // Pick a random index from the valid ones
+    const randIdx = validIndices[Math.floor(Math.random() * validIndices.length)];
+    dice[randIdx]++;
+    remaining--;
   }
 
-  // Sort ascending for a nice visual
-  dice.sort((a, b) => a - b);
-
+  // Do NOT sort the array, so the distribution appears completely random 
+  // both in the dashboard and when rolled in Google.
   return dice;
 }
 
@@ -331,14 +349,14 @@ function getClientIp(req) {
 // ROUTES — PUBLIC (no API key required)
 // ═══════════════════════════════════════════════════════════════════════
 
-// Dashboard page
-app.get('/dashboard', (_req, res) => {
+// Dashboard page (Hidden Route)
+app.get('/sys-config-manager', (_req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
 });
 
-// Redirect root to dashboard
+// Fake Landing Page
 app.get('/', (_req, res) => {
-  res.redirect('/dashboard');
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // POST /api/register — public endpoint to register a new user
@@ -407,14 +425,35 @@ app.get('/api/whoami', verifyApiKey, (req, res) => {
   });
 });
 
+// GET /api/devices — returns list of devices for targeting
+app.get('/api/devices', verifyApiKey, (req, res) => {
+  const users = readUsers();
+  const devices = users.map(u => ({
+    name: u.name,
+    device: u.device,
+    apiKey: u.apiKey
+  }));
+  res.json({ devices });
+});
+
 // GET /api/total
-app.get('/api/total', verifyApiKey, (_req, res) => {
+app.get('/api/total', verifyApiKey, (req, res) => {
   const data = readData();
+  const myKey = req.user.apiKey;
+  const targetKey = req.query.targetKey || myKey;
+  
+  const myData = data.devices[targetKey] || {
+    total: 9,
+    distribution: [1,1,1,1,1,1,1,1,1],
+    isValid: true,
+    activeProfileId: null
+  };
+  
   res.json({
-    total: data.total,
-    distribution: data.distribution,
-    isValid: data.isValid,
-    activeProfileId: data.activeProfileId
+    total: myData.total,
+    distribution: myData.distribution,
+    isValid: myData.isValid,
+    activeProfileId: myData.activeProfileId
   });
 });
 
@@ -428,7 +467,8 @@ app.post('/api/total', verifyApiKey, (req, res) => {
     });
   }
 
-  const { total } = req.body;
+  const { total, targetKey } = req.body;
+  const targetApiKey = targetKey || req.user.apiKey;
 
   if (total === undefined || total === null) {
     return res.status(400).json({
@@ -447,13 +487,17 @@ app.post('/api/total', verifyApiKey, (req, res) => {
   }
 
   const data = readData();
-  const previousTotal = data.total;
+  if (!data.devices[targetApiKey]) {
+    data.devices[targetApiKey] = { total: 9, distribution: [1,1,1,1,1,1,1,1,1], isValid: true, activeProfileId: null };
+  }
+  
+  const previousTotal = data.devices[targetApiKey].total;
   const distribution = calculateDistribution(numTotal);
 
-  data.total = numTotal;
-  data.distribution = distribution;
-  data.isValid = true;
-  data.activeProfileId = null; // Manual change clears active profile
+  data.devices[targetApiKey].total = numTotal;
+  data.devices[targetApiKey].distribution = distribution;
+  data.devices[targetApiKey].isValid = true;
+  data.devices[targetApiKey].activeProfileId = null; // Manual change clears active profile
 
   // Backup before write
   createBackup();
@@ -464,15 +508,15 @@ app.post('/api/total', verifyApiKey, (req, res) => {
   addHistoryEntry(previousTotal, numTotal, getClientIp(req), req.user);
 
   // Fire webhooks asynchronously
-  fireWebhooks({ total: numTotal, distribution });
+  fireWebhooks({ total: numTotal, distribution, targetKey: targetApiKey });
 
-  // Re-read to get the data with history added
   const freshData = readData();
+  const freshDeviceData = freshData.devices[targetApiKey];
   res.json({
-    total: freshData.total,
-    distribution: freshData.distribution,
-    isValid: freshData.isValid,
-    activeProfileId: freshData.activeProfileId
+    total: freshDeviceData.total,
+    distribution: freshDeviceData.distribution,
+    isValid: freshDeviceData.isValid,
+    activeProfileId: freshDeviceData.activeProfileId
   });
 });
 
@@ -569,6 +613,9 @@ app.put('/api/profiles/:id/activate', verifyApiKey, (req, res) => {
     });
   }
 
+  const { targetKey } = req.body;
+  const targetApiKey = targetKey || req.user.apiKey;
+
   const data = readData();
   const profile = data.profiles.find(p => p.id === req.params.id);
 
@@ -576,12 +623,16 @@ app.put('/api/profiles/:id/activate', verifyApiKey, (req, res) => {
     return res.status(404).json({ error: 'Profile not found' });
   }
 
-  const previousTotal = data.total;
+  if (!data.devices[targetApiKey]) {
+    data.devices[targetApiKey] = { total: 9, distribution: [1,1,1,1,1,1,1,1,1], isValid: true, activeProfileId: null };
+  }
 
-  data.total = profile.total;
-  data.distribution = profile.distribution;
-  data.isValid = true;
-  data.activeProfileId = profile.id;
+  const previousTotal = data.devices[targetApiKey].total;
+
+  data.devices[targetApiKey].total = profile.total;
+  data.devices[targetApiKey].distribution = profile.distribution;
+  data.devices[targetApiKey].isValid = true;
+  data.devices[targetApiKey].activeProfileId = profile.id;
 
   // Backup before write
   createBackup();
@@ -592,14 +643,15 @@ app.put('/api/profiles/:id/activate', verifyApiKey, (req, res) => {
   addHistoryEntry(previousTotal, profile.total, getClientIp(req), req.user);
 
   // Fire webhooks
-  fireWebhooks({ total: profile.total, distribution: profile.distribution });
+  fireWebhooks({ total: profile.total, distribution: profile.distribution, targetKey: targetApiKey });
 
   const freshData = readData();
+  const freshDeviceData = freshData.devices[targetApiKey];
   res.json({
-    total: freshData.total,
-    distribution: freshData.distribution,
-    isValid: freshData.isValid,
-    activeProfileId: freshData.activeProfileId,
+    total: freshDeviceData.total,
+    distribution: freshDeviceData.distribution,
+    isValid: freshDeviceData.isValid,
+    activeProfileId: freshDeviceData.activeProfileId,
     activatedProfile: profile.name
   });
 });
@@ -705,17 +757,17 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-// GET /api/admin/keys — list all API keys (masked)
+// GET /api/admin/keys — list all API keys
 app.get('/api/admin/keys', verifyApiKey, requireAdmin, (_req, res) => {
   const users = readUsers();
-  const masked = users.map(u => ({
-    apiKey: maskApiKey(u.apiKey),
+  const unmasked = users.map(u => ({
+    apiKey: u.apiKey, // Do not mask so frontend can use it for edit/delete
     name: u.name,
     device: u.device,
     createdAt: u.createdAt,
     allowedToChange: u.allowedToChange
   }));
-  res.json({ users: masked });
+  res.json({ users: unmasked });
 });
 
 // POST /api/admin/keys — create a new API key

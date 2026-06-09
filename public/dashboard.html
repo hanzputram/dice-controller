@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dice Total Controller — Dashboard</title>
-  <meta name="description" content="Modern dashboard to control the total of 9 dice with even distribution." />
+  <title>System Metrics</title>
+  <meta name="description" content="System configuration and metrics dashboard." />
   <style>
     /* ═══════════════════════════════════════════════
        RESET & BASE
@@ -919,8 +919,8 @@
 
     <!-- HEADER -->
     <header class="header" id="header">
-      <h1><span class="emoji">🎲</span> Dice Total Controller</h1>
-      <p class="subtitle">Control total dari 9 dadu (9–54)</p>
+      <h1><span class="emoji">📊</span> System Configuration</h1>
+      <p class="subtitle">Manage remote configuration and sync status</p>
     </header>
 
     <!-- API KEY INPUT -->
@@ -1045,6 +1045,14 @@
       <!-- CONTROLS -->
       <section class="card" id="controlsCard">
         <div class="card-label">Set Total</div>
+        
+        <div id="targetDeviceContainer" style="display: none; margin-bottom: 1.25rem;">
+          <label for="targetDeviceSelect" style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); display: block; margin-bottom: 0.4rem;">Target Perangkat:</label>
+          <select id="targetDeviceSelect" class="apikey-input" style="width: 100%; cursor: pointer;">
+            <option value="">— Loading perangkat... —</option>
+          </select>
+        </div>
+
         <div class="control-row">
           <div class="slider-wrap">
             <input type="range" id="totalSlider" min="9" max="54" value="9" aria-label="Total slider" />
@@ -1167,6 +1175,9 @@
     const addWebhookBtn  = document.getElementById('addWebhookBtn');
     const webhookList    = document.getElementById('webhookList');
     const historyList    = document.getElementById('historyList');
+    // Target Device
+    const targetDeviceContainer = document.getElementById('targetDeviceContainer');
+    const targetDeviceSelect    = document.getElementById('targetDeviceSelect');
     // Users (Admin)
     const usersTabBtn    = document.getElementById('usersTabBtn');
     const newUserName    = document.getElementById('newUserName');
@@ -1190,6 +1201,7 @@
     let debounceTimer = null;
     let isSending = false;
     let currentApiKey = '';
+    let currentTargetKey = '';
     let currentUser = null; // { name, device, apiKey (masked), allowedToChange }
 
     // ─── Auth Helpers ──────────────────────────────
@@ -1242,6 +1254,12 @@
       activateProfileBtn.addEventListener('click', onActivateProfile);
       createProfileBtn.addEventListener('click', onCreateProfile);
       newProfileName.addEventListener('keydown', e => { if (e.key === 'Enter') onCreateProfile(); });
+      
+      // Target Device
+      targetDeviceSelect.addEventListener('change', (e) => {
+        currentTargetKey = e.target.value;
+        fetchCurrentState(currentTargetKey);
+      });
 
       // Registration
       document.getElementById('showRegisterBtn').addEventListener('click', (e) => {
@@ -1307,12 +1325,14 @@
         showToast(`✓ Logged in as ${data.name}`, 'success');
 
         // Load all data
+        currentTargetKey = key;
         fetchCurrentState();
         fetchProfiles();
         fetchWebhooks();
         fetchHistory();
         if (currentUser.allowedToChange) {
           fetchUsers();
+          fetchDevices();
         }
       } catch (err) {
         showToast('Gagal menghubungi server', 'error');
@@ -1359,6 +1379,7 @@
         profileCreateRow.style.display = canWrite ? '' : 'none';
         activateProfileBtn.style.display = canWrite ? '' : 'none';
         usersTabBtn.style.display = canWrite ? '' : 'none';
+        targetDeviceContainer.style.display = canWrite ? 'block' : 'none';
 
         // Reset tabs to history if users tab was active but now not auth'd as admin
         if (!canWrite && usersTabBtn.classList.contains('active')) {
@@ -1567,9 +1588,33 @@
 
     // ─── API Calls (all use apiFetch for auth) ─────
 
-    async function fetchCurrentState() {
+    async function fetchDevices() {
       try {
-        const res = await apiFetch(API_URL);
+        const res = await apiFetch('/api/devices');
+        if (!res.ok) return;
+        const data = await res.json();
+        
+        targetDeviceSelect.innerHTML = '';
+        data.devices.forEach(d => {
+          const opt = document.createElement('option');
+          opt.value = d.apiKey;
+          opt.textContent = `${d.name} — ${d.device}`;
+          if (d.apiKey === currentApiKey) opt.textContent += ' (Anda)';
+          targetDeviceSelect.appendChild(opt);
+        });
+        
+        if (!currentTargetKey) currentTargetKey = currentApiKey;
+        targetDeviceSelect.value = currentTargetKey;
+      } catch (err) {
+        console.error('Gagal memuat daftar perangkat target');
+      }
+    }
+
+    async function fetchCurrentState(targetKey) {
+      try {
+        let url = API_URL;
+        if (targetKey) url += `?targetKey=${encodeURIComponent(targetKey)}`;
+        const res = await apiFetch(url);
         if (!res.ok) { handleApiError(res); return; }
         const data = await res.json();
         currentTotal = data.total;
@@ -1591,10 +1636,15 @@
       }
       setLoading(true);
       try {
+        const payload = { total };
+        if (currentTargetKey && currentTargetKey !== currentApiKey) {
+          payload.targetKey = currentTargetKey;
+        }
+        
         const res = await apiFetch(API_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ total })
+          body: JSON.stringify(payload)
         });
         const data = await res.json();
         if (!res.ok) {
@@ -1652,7 +1702,15 @@
       if (isSending) return;
       setLoading(true);
       try {
-        const res = await apiFetch(`${PROFILES_URL}/${id}/activate`, { method: 'PUT' });
+        const payload = {};
+        if (currentTargetKey && currentTargetKey !== currentApiKey) {
+          payload.targetKey = currentTargetKey;
+        }
+        const res = await apiFetch(`${PROFILES_URL}/${id}/activate`, { 
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
         const data = await res.json();
         if (!res.ok) {
           showToast(data.message || data.error || 'Gagal mengaktifkan profile', 'error');
@@ -1833,12 +1891,16 @@
         const item = document.createElement('div');
         item.className = 'webhook-item'; // Reusing webhook list style for simplicity
         
-        const isSelf = u.apiKey.indexOf('***') === -1 ? 
-          currentUser.apiKey === u.apiKey : 
-          false; // If it's masked we can't be sure, but we prevent self-delete on backend anyway
+        const isSelf = currentUser.apiKey === u.apiKey;
 
         const badgeClass = u.allowedToChange ? 'badge-success' : 'badge-warning';
         const badgeText = u.allowedToChange ? 'Admin' : 'Read-only';
+        
+        // Visually mask the API key (e.g. key-a***v2tn)
+        let maskedKey = u.apiKey;
+        if (u.apiKey && u.apiKey.length > 10) {
+          maskedKey = u.apiKey.substring(0, 5) + '***' + u.apiKey.substring(u.apiKey.length - 4);
+        }
 
         item.innerHTML = `
           <div style="flex: 1; display: flex; flex-direction: column; gap: 2px; overflow: hidden;">
@@ -1848,7 +1910,7 @@
             </div>
             <div style="font-size: 0.7rem; color: var(--text-muted); display: flex; gap: 8px;">
               <span>📱 ${escHtml(u.device)}</span>
-              <span style="font-family: monospace; color: var(--text-secondary);">🔑 ${escHtml(u.apiKey)}</span>
+              <span style="font-family: monospace; color: var(--text-secondary);">🔑 ${escHtml(maskedKey)}</span>
             </div>
           </div>
           <div style="display:flex; align-items:center; gap: 0.75rem;">

@@ -17,6 +17,10 @@
   'use strict';
 
   // ─── CONFIG ──────────────────────────────────────────────────────────
+  // PENTING UNTUK MOBILE (HP):
+  // 1. Ganti SERVER_URL dengan link public Anda (misal dari Ngrok)
+  //    Contoh: const SERVER_URL = 'https://abcd.ngrok-free.app';
+  // 2. Ganti API_KEY dengan API Key milik HP tersebut yang didaftarkan di Dashboard.
   const SERVER_URL = 'http://localhost:3000';
   const API_KEY = 'key-laptop-rumah';
   const POLL_INTERVAL = 500; // ms
