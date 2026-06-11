@@ -1044,7 +1044,10 @@
 
       <!-- CONTROLS -->
       <section class="card" id="controlsCard">
-        <div class="card-label">Set Total</div>
+        <div class="card-label">
+          <span>Set Total</span>
+          <span class="badge" id="overrideBadge">Loading...</span>
+        </div>
         
         <div id="targetDeviceContainer" style="display: none; margin-bottom: 1.25rem;">
           <label for="targetDeviceSelect" style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); display: block; margin-bottom: 0.4rem;">Target Perangkat:</label>
@@ -1067,6 +1070,9 @@
           <button class="preset-btn" data-value="36" data-tooltip="Rata-rata 4 per dadu">36</button>
           <button class="preset-btn" data-value="45" data-tooltip="Rata-rata 5 per dadu">45</button>
           <button class="preset-btn" data-value="54" data-tooltip="Maximum — semua dadu ⚅">54</button>
+        </div>
+        <div style="display: flex; justify-content: center; margin-top: 1rem;">
+          <button class="btn btn-teal" id="fairPlayBtn" title="Matikan pengaturan, biarkan dadu murni acak">🎲 Acak Murni (Tanpa Setting)</button>
         </div>
       </section>
 
@@ -1203,6 +1209,19 @@
     let currentApiKey = '';
     let currentTargetKey = '';
     let currentUser = null; // { name, device, apiKey (masked), allowedToChange }
+    let currentOverrideEnabled = true;
+
+    function updateOverrideUI() {
+      const badge = document.getElementById('overrideBadge');
+      if (!badge) return;
+      if (currentOverrideEnabled) {
+        badge.textContent = 'Override: ON';
+        badge.className = 'badge badge-warning';
+      } else {
+        badge.textContent = 'Acak Murni (Fair Play)';
+        badge.className = 'badge badge-success';
+      }
+    }
 
     // ─── Auth Helpers ──────────────────────────────
 
@@ -1249,6 +1268,39 @@
       totalSlider.addEventListener('input', onSliderChange);
       totalInput.addEventListener('change', onInputChange);
       presets.addEventListener('click', onPresetClick);
+      document.getElementById('fairPlayBtn').addEventListener('click', async () => {
+        if (isSending) return;
+        if (currentUser && !currentUser.allowedToChange) {
+          showToast('Anda tidak memiliki izin', 'error');
+          return;
+        }
+        setLoading(true);
+        try {
+          const payload = { overrideEnabled: false };
+          if (currentTargetKey && currentTargetKey !== currentApiKey) {
+            payload.targetKey = currentTargetKey;
+          }
+          const res = await apiFetch('/api/total', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            showToast(data.message || data.error, 'error');
+            return;
+          }
+          currentOverrideEnabled = false;
+          currentActiveProfileId = null;
+          renderProfiles();
+          updateOverrideUI();
+          showToast('✓ Override dimatikan. Dadu sekarang murni acak.', 'success');
+        } catch (err) {
+          showToast('Gagal', 'error');
+        } finally {
+          setLoading(false);
+        }
+      });
 
       // Profiles
       activateProfileBtn.addEventListener('click', onActivateProfile);
@@ -1620,9 +1672,11 @@
         currentTotal = data.total;
         currentDistribution = data.distribution;
         currentActiveProfileId = data.activeProfileId || null;
+        currentOverrideEnabled = data.overrideEnabled !== false;
         renderTotal(currentTotal);
         renderDice(currentDistribution, false);
         renderDistribution(currentDistribution);
+        updateOverrideUI();
       } catch (err) {
         showToast('Gagal memuat data dari server', 'error');
       }
@@ -1655,9 +1709,11 @@
         currentTotal = data.total;
         currentDistribution = data.distribution;
         currentActiveProfileId = data.activeProfileId || null;
+        currentOverrideEnabled = data.overrideEnabled !== false;
         renderDice(currentDistribution, true);
         renderDistribution(currentDistribution);
         renderTotal(currentTotal);
+        updateOverrideUI();
         renderProfiles();
         fetchHistory();
         showToast('✓ Updated successfully', 'success');
@@ -1720,9 +1776,11 @@
         currentTotal = data.total;
         currentDistribution = data.distribution;
         currentActiveProfileId = data.activeProfileId || null;
+        currentOverrideEnabled = data.overrideEnabled !== false;
         renderDice(currentDistribution, true);
         renderDistribution(currentDistribution);
         renderTotal(currentTotal);
+        updateOverrideUI();
         renderProfiles();
         fetchHistory();
         showToast(`✓ Profile "${data.activatedProfile}" activated`, 'success');

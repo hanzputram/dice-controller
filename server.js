@@ -446,14 +446,16 @@ app.get('/api/total', verifyApiKey, (req, res) => {
     total: 9,
     distribution: [1,1,1,1,1,1,1,1,1],
     isValid: true,
-    activeProfileId: null
+    activeProfileId: null,
+    overrideEnabled: true
   };
   
   res.json({
     total: myData.total,
     distribution: myData.distribution,
     isValid: myData.isValid,
-    activeProfileId: myData.activeProfileId
+    activeProfileId: myData.activeProfileId,
+    overrideEnabled: myData.overrideEnabled !== false
   });
 });
 
@@ -467,8 +469,27 @@ app.post('/api/total', verifyApiKey, (req, res) => {
     });
   }
 
-  const { total, targetKey } = req.body;
+  const { total, targetKey, overrideEnabled } = req.body;
   const targetApiKey = targetKey || req.user.apiKey;
+
+  const data = readData();
+  if (!data.devices[targetApiKey]) {
+    data.devices[targetApiKey] = { total: 9, distribution: [1,1,1,1,1,1,1,1,1], isValid: true, activeProfileId: null, overrideEnabled: true };
+  }
+
+  // Jika request hanya untuk mematikan/menyalakan override
+  if (overrideEnabled !== undefined && total === undefined) {
+    data.devices[targetApiKey].overrideEnabled = Boolean(overrideEnabled);
+    if (!overrideEnabled) data.devices[targetApiKey].activeProfileId = null;
+    writeData(data);
+    return res.json({
+      total: data.devices[targetApiKey].total,
+      distribution: data.devices[targetApiKey].distribution,
+      isValid: data.devices[targetApiKey].isValid,
+      activeProfileId: data.devices[targetApiKey].activeProfileId,
+      overrideEnabled: data.devices[targetApiKey].overrideEnabled
+    });
+  }
 
   if (total === undefined || total === null) {
     return res.status(400).json({
@@ -485,11 +506,6 @@ app.post('/api/total', verifyApiKey, (req, res) => {
       isValid: false
     });
   }
-
-  const data = readData();
-  if (!data.devices[targetApiKey]) {
-    data.devices[targetApiKey] = { total: 9, distribution: [1,1,1,1,1,1,1,1,1], isValid: true, activeProfileId: null };
-  }
   
   const previousTotal = data.devices[targetApiKey].total;
   const distribution = calculateDistribution(numTotal);
@@ -498,6 +514,11 @@ app.post('/api/total', verifyApiKey, (req, res) => {
   data.devices[targetApiKey].distribution = distribution;
   data.devices[targetApiKey].isValid = true;
   data.devices[targetApiKey].activeProfileId = null; // Manual change clears active profile
+  if (overrideEnabled !== undefined) {
+    data.devices[targetApiKey].overrideEnabled = Boolean(overrideEnabled);
+  } else {
+    data.devices[targetApiKey].overrideEnabled = true; // Auto-enable when setting a new total without specifying
+  }
 
   // Backup before write
   createBackup();
@@ -516,7 +537,8 @@ app.post('/api/total', verifyApiKey, (req, res) => {
     total: freshDeviceData.total,
     distribution: freshDeviceData.distribution,
     isValid: freshDeviceData.isValid,
-    activeProfileId: freshDeviceData.activeProfileId
+    activeProfileId: freshDeviceData.activeProfileId,
+    overrideEnabled: freshDeviceData.overrideEnabled !== false
   });
 });
 

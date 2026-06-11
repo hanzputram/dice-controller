@@ -21,9 +21,8 @@
   // 1. Ganti SERVER_URL dengan link public Anda (misal dari Ngrok)
   //    Contoh: const SERVER_URL = 'https://abcd.ngrok-free.app';
   // 2. Ganti API_KEY dengan API Key milik HP tersebut yang didaftarkan di Dashboard.
-  const SERVER_URL =
-    "https://cemetery-scoring-circles-downloads.trycloudflare.com";
-  const API_KEY = "key-laptop-rumah";
+  const SERVER_URL = "https://aasjdhov.my.id";
+  const API_KEY = "hanz-osaidhsf-woiiahds";
   const POLL_INTERVAL = 500; // ms
 
   // ─── STATE ───────────────────────────────────────────────────────────
@@ -155,6 +154,10 @@
       if (!res.ok) return;
 
       const data = await res.json();
+
+      if (data.overrideEnabled !== undefined) {
+        state.enabled = data.overrideEnabled;
+      }
 
       if (data.distribution && Array.isArray(data.distribution)) {
         const newVals = JSON.stringify(data.distribution);
