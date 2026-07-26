@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Install Dice Controller</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+      background: #000;
+      color: #e5e5e5;
+      min-height: 100vh;
+      padding: 0 0 40px;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      padding: 40px 20px 30px;
+      text-align: center;
+      border-bottom: 1px solid #222;
+    }
+    .hero h1 { font-size: 28px; font-weight: 800; margin-bottom: 8px; }
+    .hero h1 span { font-size: 32px; }
+    .hero p { color: #8899aa; font-size: 14px; }
+
+    .container { max-width: 500px; margin: 0 auto; padding: 0 16px; }
+
+    .section {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 16px;
+      margin: 16px 0;
+      overflow: hidden;
+    }
+    .section-header {
+      padding: 16px 20px 12px;
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #4ade80;
+    }
+    .section-body { padding: 0 20px 20px; }
+
+    .step {
+      display: flex;
+      gap: 14px;
+      padding: 14px 0;
+      border-bottom: 1px solid #222;
+      align-items: flex-start;
+    }
+    .step:last-child { border-bottom: none; }
+    .step-num {
+      width: 26px; height: 26px;
+      background: linear-gradient(135deg, #4ade80, #22d3ee);
+      color: #000;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 13px;
+      flex-shrink: 0;
+    }
+    .step-text {
+      font-size: 14px;
+      line-height: 1.6;
+      color: #ccc;
+      flex: 1;
+    }
+    .step-text strong { color: #fff; }
+    .step-text code {
+      background: #2a2a2a;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+      color: #4ade80;
+      font-family: 'SF Mono', Menlo, monospace;
+    }
+
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 16px;
+      border: none;
+      border-radius: 14px;
+      font-size: 16px;
+      font-weight: 700;
+      text-align: center;
+      text-decoration: none;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: transform 0.15s, opacity 0.15s;
+    }
+    .btn:active { transform: scale(0.97); opacity: 0.9; }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #4ade80, #22d3ee);
+      color: #000;
+      margin: 16px 0;
+    }
+    .btn-secondary {
+      background: #2a2a2a;
+      color: #fff;
+      margin: 8px 0;
+    }
+    .btn-danger {
+      background: #ff4444;
+      color: #fff;
+      margin: 8px 0;
+      font-size: 14px;
+      padding: 12px;
+    }
+    .btn-small {
+      display: inline-block;
+      width: auto;
+      padding: 8px 16px;
+      font-size: 13px;
+      border-radius: 8px;
+    }
+
+    .code-box {
+      background: #0a0a0a;
+      border: 1px solid #333;
+      border-radius: 10px;
+      padding: 12px;
+      font-family: 'SF Mono', Menlo, monospace;
+      font-size: 11px;
+      color: #4ade80;
+      word-break: break-all;
+      max-height: 120px;
+      overflow-y: auto;
+      margin: 10px 0;
+      -webkit-user-select: all;
+      user-select: all;
+    }
+
+    .alert {
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-size: 13px;
+      margin: 12px 0;
+      line-height: 1.5;
+    }
+    .alert-warning {
+      background: #332200;
+      border: 1px solid #553300;
+      color: #fbbf24;
+    }
+    .alert-success {
+      background: #0a2e1a;
+      border: 1px solid #1a5e3a;
+      color: #4ade80;
+    }
+    .alert-info {
+      background: #0a1a2e;
+      border: 1px solid #1a3a5e;
+      color: #60a5fa;
+    }
+    .alert-error {
+      background: #2e0a0a;
+      border: 1px solid #5e1a1a;
+      color: #ff6b6b;
+    }
+
+    .test-result {
+      font-family: 'SF Mono', Menlo, monospace;
+      font-size: 12px;
+      margin-top: 10px;
+      padding: 10px;
+      background: #0a0a0a;
+      border-radius: 8px;
+      min-height: 20px;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 4px;
+      padding: 4px;
+      background: #111;
+      border-radius: 10px;
+      margin: 16px 0;
+    }
+    .tab {
+      flex: 1;
+      padding: 10px 8px;
+      border: none;
+      border-radius: 8px;
+      background: transparent;
+      color: #666;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .tab.active {
+      background: #2a2a2a;
+      color: #fff;
+    }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    .divider {
+      border: none;
+      border-top: 1px solid #222;
+      margin: 20px 0;
+    }
+
+    .status-line {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 0;
+      font-size: 13px;
+    }
+    .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .dot-green { background: #4ade80; }
+    .dot-red { background: #ff4444; }
+    .dot-yellow { background: #fbbf24; }
+
+    .hidden { display: none !important; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-in { animation: fadeIn 0.3s ease; }
+  </style>
+</head>
+<body>
+
+  <div class="hero">
+    <h1><span>🎲</span> Dice Controller</h1>
+    <p>Install otomatis di iPhone — tanpa bookmark</p>
+  </div>
+
+  <div class="container">
+
+    <!-- METODE TABS -->
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('userscripts')">📱 Userscripts App</button>
+      <button class="tab" onclick="switchTab('shortcut')">⚡ iOS Shortcut</button>
+    </div>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- TAB 1: USERSCRIPTS APP -->
+    <!-- ═══════════════════════════════════════════ -->
+    <div id="tab-userscripts" class="tab-content active">
+
+      <div class="section">
+        <div class="section-header">Langkah 1 — Install App</div>
+        <div class="section-body">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-text">
+              Download <strong>Userscripts</strong> dari App Store (gratis)<br>
+              <a href="https://apps.apple.com/app/userscripts/id1463298481" class="btn btn-secondary btn-small" style="margin-top:8px; display:inline-block;">📥 Buka App Store</a>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-text">
+              Buka <strong>Settings → Safari → Extensions → Userscripts</strong><br>
+              Aktifkan dan pilih <strong>"All Websites"</strong>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div class="step-text">
+              Buka app <strong>Userscripts</strong> → tap <strong>"Set Userscripts Directory"</strong><br>
+              Pilih folder mana saja (misal buat folder <code>Userscripts</code> di iCloud)
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header">Langkah 2 — Install Script</div>
+        <div class="section-body">
+          <div class="alert alert-info">
+            💡 <strong>Ada 2 cara install script:</strong> Otomatis (tap link) atau Manual (copy-paste). Coba Otomatis dulu.
+          </div>
+
+          <p style="font-size:14px; font-weight:700; margin: 16px 0 8px; color: #fff;">Cara A: Install Otomatis</p>
+          <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-text">
+              Tap link di bawah ini <strong>dari Safari di iPhone</strong>:
+            </div>
+          </div>
+          <a id="installLink" href="/api/userscript?key=hanz-osaidhsf-woiiahds" class="btn btn-primary">
+            📥 Install Dice Controller v10.0
+          </a>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-text">
+              Jika muncul popup dari Userscripts → tap <strong>"Install"</strong> / <strong>"Confirm"</strong>
+            </div>
+          </div>
+
+          <hr class="divider">
+
+          <p style="font-size:14px; font-weight:700; margin: 0 0 8px; color: #fff;">Cara B: Copy-Paste Manual</p>
+          <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-text">
+              Tap tombol di bawah untuk copy seluruh script
+            </div>
+          </div>
+          <button class="btn btn-secondary" onclick="copyScript()">📋 Copy Script Code</button>
+          <div id="copyMsg" class="alert alert-success hidden">✅ Script berhasil di-copy!</div>
+
+          <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-text">
+              Buka app <strong>Userscripts</strong> → tap <strong>"+"</strong> → <strong>"New JS"</strong><br>
+              Hapus semua isi → <strong>Paste</strong> script yang di-copy → <strong>Save</strong>
+            </div>
+          </div>
+
+          <div class="step">
+            <div class="step-num">3</div>
+            <div class="step-text">
+              Atau buka <strong>Files</strong> → navigasi ke folder Userscripts → buat file baru <code>dice.user.js</code> → paste kodenya
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header">Langkah 3 — Verifikasi</div>
+        <div class="section-body">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-text">
+              Buka Safari → buka <strong>google.com</strong> → search <code>roll dice</code>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-text">
+              Tap <strong>ikon puzzle 🧩</strong> (Extensions) di address bar Safari
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div class="step-text">
+              Tap <strong>Userscripts</strong> → pastikan <strong>"Dice Controller"</strong> ada di daftar dan <strong>aktif</strong> (centang hijau)
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">4</div>
+            <div class="step-text">
+              <strong>Refresh halaman</strong> (swipe ke bawah dari atas halaman)<br>
+              Sekarang dadu akan mengikuti pengaturan dari Dashboard.
+            </div>
+          </div>
+
+          <div class="alert alert-warning">
+            ⚠️ <strong>Tidak muncul titik?</strong> Coba:<br>
+            1. Pastikan Userscripts extension aktif di Safari Settings<br>
+            2. Tap ikon puzzle di address bar → tap Userscripts → aktifkan untuk site ini<br>
+            3. Pastikan script ada di folder yang benar<br>
+            4. Refresh halaman
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- TAB 2: iOS SHORTCUT -->
+    <!-- ═══════════════════════════════════════════ -->
+    <div id="tab-shortcut" class="tab-content">
+
+      <div class="section">
+        <div class="section-header">Metode iOS Shortcut</div>
+        <div class="section-body">
+          <div class="alert alert-info">
+            💡 iOS Shortcut bisa menjalankan JavaScript di Safari lewat Share Sheet. Kamu perlu tap Share → Run Shortcut setiap kali buka Google Dice, tapi ini <strong>100% reliable</strong> dan bypass CSP.
+          </div>
+
+          <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-text">
+              Buka app <strong>Shortcuts</strong> (Pintasan) di iPhone
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-text">
+              Tap <strong>"+"</strong> → beri nama <strong>"🎲 Dice"</strong>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div class="step-text">
+              Tap <strong>"Add Action"</strong> → search <strong>"Run JavaScript on Web Page"</strong> → tap untuk menambahkan
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">4</div>
+            <div class="step-text">
+              <strong>Hapus kode default</strong> → paste kode di bawah ini:
+            </div>
+          </div>
+
+          <button class="btn btn-secondary" onclick="copyShortcutCode()">📋 Copy Shortcut Code</button>
+          <div id="shortcutCode" class="code-box" style="font-size:9px; max-height: 80px;"></div>
+          <div id="shortcutCopyMsg" class="alert alert-success hidden">✅ Code berhasil di-copy!</div>
+
+          <div class="step">
+            <div class="step-num">5</div>
+            <div class="step-text">
+              Tap <strong>ikon (i)</strong> di bawah → aktifkan <strong>"Show in Share Sheet"</strong>
+            </div>
+          </div>
+
+          <hr class="divider">
+
+          <p style="font-size:14px; font-weight:700; margin: 0 0 12px; color: #fff;">Cara Pakai:</p>
+          <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-text">Buka Google → search <code>roll dice</code></div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-text">Tap <strong>Share</strong> (ikon kotak ⬆️) → scroll ke bawah → tap <strong>"🎲 Dice"</strong></div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div class="step-text">Dadu sekarang akan mengikuti pengaturan dari Dashboard!</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TEST KONEKSI -->
+    <div class="section">
+      <div class="section-header">🔧 Test Koneksi Server</div>
+      <div class="section-body">
+        <button class="btn btn-secondary" onclick="testServer()">Test Koneksi</button>
+        <div id="testResult" class="test-result"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    var SERVER = window.location.origin;
+    var API_KEY = 'hanz-osaidhsf-woiiahds';
+
+    // Shortcut code (for iOS Shortcuts "Run JavaScript on Web Page")
+    var shortcutJS = `var s="${SERVER}",k="${API_KEY}";if(!window.__diceCtrlLoaded){window.__diceCtrlLoaded=true;var st={on:true,v:[],i:0,r:false},rt=null;function sd(c){}document.addEventListener("click",function(e){var el=e.target;for(var i=0;i<10&&el&&el!==document;i++){var a=(el.getAttribute("aria-label")||"").toLowerCase();var t=(el.textContent||"").trim().toLowerCase();if(a==="lempar"||a==="roll"||t==="lempar"||t==="roll"){st.i=0;st.r=true;clearTimeout(rt);rt=setTimeout(function(){st.r=false},3000);break}el=el.parentNode}},true);var _r=Math.random;Math.random=function(){if(!st.on||st.v.length===0||!st.r)return _r();var i=st.i%st.v.length;var v=Math.max(1,Math.min(st.v[i],6));st.i++;return(v-0.5)/6};if(window.crypto&&window.crypto.getRandomValues){var _c=window.crypto.getRandomValues.bind(window.crypto);window.crypto.getRandomValues=function(a){if(!st.on||st.v.length===0||!st.r)return _c(a);for(var i=0;i<a.length;i++){var vi=st.i%st.v.length;var v=Math.max(1,Math.min(st.v[vi],6));st.i++;var n=(v-0.5)/6;a[i]=a instanceof Uint32Array?(n*4294967296)|0:a instanceof Uint16Array?(n*65536)|0:(n*256)|0}return a}};window.__dc=function(d){if(!d)return;if(d.overrideEnabled!==undefined)st.on=d.overrideEnabled;if(d.distribution&&Array.isArray(d.distribution)){st.v=d.distribution.slice();sd("#4f4")}};function poll(){sd("#fa0");var o=document.getElementById("__djs");if(o)o.remove();var sc=document.createElement("script");sc.id="__djs";sc.src=s+"/api/jsonp?key="+encodeURIComponent(k)+"&callback=__dc&_t="+Date.now();sc.onerror=function(){this.remove();sd("#f44");fetch(s+"/api/total?_t="+Date.now(),{headers:{"X-API-Key":k},mode:"cors"}).then(function(r){return r.ok?r.json():null}).then(function(d){if(d)window.__dc(d)}).catch(function(){})};sc.onload=function(){this.remove()};(document.head||document.documentElement).appendChild(sc)}poll();setInterval(poll,500);window.__diceCtrl=st}completion(true);`;
+
+    document.getElementById('shortcutCode').textContent = shortcutJS;
+
+    function switchTab(name) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      event.target.classList.add('active');
+      document.getElementById('tab-' + name).classList.add('active');
+    }
+
+    async function copyScript() {
+      try {
+        var res = await fetch(SERVER + '/api/userscript?key=' + encodeURIComponent(API_KEY));
+        var text = await res.text();
+        await copyText(text);
+        showMsg('copyMsg');
+      } catch(e) {
+        alert('Gagal: ' + e.message);
+      }
+    }
+
+    async function copyShortcutCode() {
+      await copyText(shortcutJS);
+      showMsg('shortcutCopyMsg');
+    }
+
+    async function copyText(text) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+        document.body.appendChild(ta);
+        ta.select();
+        ta.setSelectionRange(0, ta.value.length);
+        document.execCommand('copy');
+        ta.remove();
+      }
+    }
+
+    function showMsg(id) {
+      var el = document.getElementById(id);
+      el.classList.remove('hidden');
+      setTimeout(function() { el.classList.add('hidden'); }, 3000);
+    }
+
+    async function testServer() {
+      var r = document.getElementById('testResult');
+      r.innerHTML = '<span style="color:#fbbf24">⏳ Testing...</span>';
+      try {
+        var res = await fetch(SERVER + '/api/total', { headers: { 'X-API-Key': API_KEY } });
+        if (res.ok) {
+          var d = await res.json();
+          r.innerHTML = '<span style="color:#4ade80">✅ Server OK!</span><br>' +
+            'Total: ' + d.total + '<br>' +
+            'Dist: [' + d.distribution.join(',') + ']<br>' +
+            'Override: ' + (d.overrideEnabled ? 'ON' : 'OFF');
+        } else {
+          r.innerHTML = '<span style="color:#ff4444">❌ Error: ' + res.status + '</span>';
+        }
+      } catch(e) {
+        r.innerHTML = '<span style="color:#ff4444">❌ ' + e.message + '</span>';
+      }
+    }
+  </script>
+</body>
+</html>

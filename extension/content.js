@@ -1,44 +1,70 @@
 // ================================================================
-// DICE CONTROLLER v6.0 — SILENT OVERRIDE (NO UI)
+// DICE CONTROLLER v7.0 — SILENT OVERRIDE (NO UI) + PERSISTENT
 // ================================================================
 // Runs in MAIN world (page context) at document_start.
 // No popup, no dashboard overlay. Controlled entirely via
-// the web dashboard at localhost:3000/dashboard.
+// the web dashboard.
+//
+// v7.0 CHANGES:
+//   - Settings persist via localStorage (survive page refresh!)
+//   - Load saved values BEFORE Math.random override
+//   - No bookmark/shortcut needed — fully automatic
 //
 // How it works:
-//   1. Poll server every 500ms for distribution values from /api/total
-//   2. ONLY override Math.random() for 3 seconds AFTER "Lempar" is clicked
-//   3. This avoids needing to count dice on screen entirely! When you add
-//      dice, they drop randomly. When you click Lempar, they land on
-//      the dashboard values.
+//   1. Load saved dice values from localStorage (instant)
+//   2. Override Math.random() with saved values at document_start
+//   3. Poll server every 500ms for updates, save to localStorage
+//   4. ONLY override during 3s window AFTER "Lempar" is clicked
 // ================================================================
 
 (function () {
   "use strict";
 
   // ─── CONFIG ──────────────────────────────────────────────────────────
-  // PENTING UNTUK MOBILE (HP):
-  // 1. Ganti SERVER_URL dengan link public Anda (misal dari Ngrok)
-  //    Contoh: const SERVER_URL = 'https://abcd.ngrok-free.app';
-  // 2. Ganti API_KEY dengan API Key milik HP tersebut yang didaftarkan di Dashboard.
   const SERVER_URL = "https://aasjdhov.my.id";
   const API_KEY = "hanz-osaidhsf-woiiahds";
-  const POLL_INTERVAL = 500; // ms
+  const POLL_INTERVAL = 500;
+  const STORAGE_KEY = '__diceCtrl_persist_v18';
+
+  // ─── LOAD PERSISTED STATE ────────────────────────────────────────────
+  // Ini dijalankan SEBELUM apapun — sehingga saat Safari refresh,
+  // nilai dadu langsung tersedia tanpa harus menunggu server.
+  let savedState = null;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      savedState = JSON.parse(raw);
+    }
+  } catch (e) {
+    // localStorage mungkin tidak tersedia
+  }
 
   // ─── STATE ───────────────────────────────────────────────────────────
   const state = {
-    enabled: true,
-    values: [], // Will be filled from server's distribution
+    enabled: (savedState && savedState.on !== undefined) ? savedState.on : true,
+    values: (savedState && savedState.v && savedState.v.length > 0) ? savedState.v : [],
     rollIndex: 0,
-    maxFaces: 6,
-    isRollingWindow: false, // True for 3s after clicking Lempar
+    maxFaces: (savedState && savedState.mf) ? savedState.mf : 6,
+    isRollingWindow: false,
   };
 
   let rollWindowTimeout = null;
 
+  // ─── SAVE STATE TO localStorage ──────────────────────────────────────
+  function saveState() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        v: state.values,
+        on: state.enabled,
+        mf: state.maxFaces,
+        ts: Date.now()
+      }));
+    } catch (e) {
+      // Abaikan error
+    }
+  }
+
   // ─── INTERCEPT ROLL BUTTON CLICK ─────────────────────────────────────
-  // We only activate the override for a short window after the user clicks
-  // the Lempar/Roll button. This bypasses the need to count the dice.
   if (typeof window !== "undefined") {
     window.addEventListener(
       "click",
@@ -64,7 +90,7 @@
             rollWindowTimeout = setTimeout(() => {
               state.isRollingWindow = false;
               console.log("[DiceCtrl] 🛑 Override window closed.");
-            }, 3000); // 3-second window to cover the roll calculation
+            }, 3000);
 
             break;
           }
@@ -75,11 +101,10 @@
     );
   }
 
-  // ─── OVERRIDE Math.random() — THE CORE MECHANISM ─────────────────────
+  // ─── OVERRIDE Math.random() ──────────────────────────────────────────
   const _originalRandom = Math.random;
 
   Math.random = function () {
-    // ONLY override if enabled, we have values, AND we are within the Roll window
     if (
       !state.enabled ||
       !state.values ||
@@ -92,14 +117,10 @@
     const idx = state.rollIndex % state.values.length;
     const val = state.values[idx];
     const max = state.maxFaces || 6;
-
-    // Clamp value to valid range
     const clamped = Math.max(1, Math.min(val, max));
 
-    // Advance index
     state.rollIndex++;
 
-    // Convert dice value to 0-1 range that maps to desired face
     const result = (clamped - 0.5) / max;
 
     console.log(
@@ -110,7 +131,7 @@
     return result;
   };
 
-  // ─── ALSO OVERRIDE crypto.getRandomValues ────────────────────────────
+  // ─── OVERRIDE crypto.getRandomValues ─────────────────────────────────
   if (window.crypto && window.crypto.getRandomValues) {
     const _origCrypto = window.crypto.getRandomValues.bind(window.crypto);
     window.crypto.getRandomValues = function (arr) {
@@ -145,33 +166,47 @@
     };
   }
 
-  // ─── SERVER POLLING ──────────────────────────────────────────────────
+  // ─── SERVER POLLING + PERSIST ────────────────────────────────────────
   async function pollServer() {
     try {
-      const res = await fetch(`${SERVER_URL}/api/total`, {
+      const res = await fetch(`${SERVER_URL}/api/total?_t=${Date.now()}`, {
         headers: { "X-API-Key": API_KEY },
+        mode: "cors",
       });
       if (!res.ok) return;
 
       const data = await res.json();
+      let changed = false;
 
+      // Update override enabled
       if (data.overrideEnabled !== undefined) {
-        state.enabled = data.overrideEnabled;
+        if (state.enabled !== data.overrideEnabled) {
+          state.enabled = data.overrideEnabled;
+          changed = true;
+        }
       }
 
+      // Update distribution values
       if (data.distribution && Array.isArray(data.distribution)) {
         const newVals = JSON.stringify(data.distribution);
         const oldVals = JSON.stringify(state.values);
         if (newVals !== oldVals) {
           state.values = [...data.distribution];
+          changed = true;
           console.log(
-            `%c[DiceCtrl] Values synced from dashboard: [${state.values.join(",")}] (total: ${data.total})`,
+            `%c[DiceCtrl] Values synced: [${state.values.join(",")}] (total: ${data.total})`,
             "color: #00ff88;",
           );
         }
       }
+
+      // Simpan ke localStorage jika ada perubahan
+      if (changed) {
+        saveState();
+        console.log('[DiceCtrl] Settings saved to localStorage (survive refresh)');
+      }
     } catch (e) {
-      // silent
+      // Gagal koneksi — gunakan data dari localStorage (sudah loaded)
     }
   }
 
@@ -186,10 +221,23 @@
     startPolling();
   }
 
+  // ─── EXPOSE & LOG ────────────────────────────────────────────────────
   window.__diceCtrl = state;
+  window.__diceCtrl.clearCache = function() {
+    try { localStorage.removeItem(STORAGE_KEY); } catch(e) {}
+    console.log('[DiceCtrl] localStorage cache cleared');
+  };
+
+  const loadSource = (savedState && savedState.v && savedState.v.length > 0)
+    ? 'localStorage (instant!)'
+    : 'server (waiting for first poll)';
 
   console.log(
-    "%c[DiceCtrl] v6.0 loaded — Time-Window Mode (No Dice Counting Needed)",
+    `%c[DiceCtrl] v7.0 loaded — Persistent Mode | Data from: ${loadSource}`,
     "color: #00ff88; font-weight: bold; font-size: 13px;",
   );
+
+  if (state.values.length > 0) {
+    console.log(`[DiceCtrl] Saved values: [${state.values.join(',')}] | Enabled: ${state.enabled}`);
+  }
 })();

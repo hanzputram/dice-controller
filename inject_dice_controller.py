@@ -30,27 +30,20 @@ def main():
     print(f"[*] Preparing to inject script into {TARGET_PACKAGE}")
     
     file1_path = os.path.join(EXTENSION_DIR, FILE1)
-    file2_path = os.path.join(EXTENSION_DIR, FILE2)
     
     try:
-        # Read and combine files
+        # Read file
         if not os.path.exists(file1_path):
             raise FileNotFoundError(f"File not found: {file1_path}")
-        if not os.path.exists(file2_path):
-            raise FileNotFoundError(f"File not found: {file2_path}")
             
         size1 = get_file_size_kb(file1_path)
-        print(f"📁 Membaca {FILE1} ({size1:.2f} KB)")
+        print(f"[*] Membaca {FILE1} ({size1:.2f} KB)")
         content1 = read_file(file1_path)
         
-        size2 = get_file_size_kb(file2_path)
-        print(f"📁 Membaca {FILE2} ({size2:.2f} KB)")
-        content2 = read_file(file2_path)
-        
-        combined_script = content1 + "\n\n" + content2
+        combined_script = content1
         total_size = len(combined_script.encode('utf-8')) / 1024.0
         
-        print(f"📦 Total script: {total_size:.2f} KB")
+        print(f"[*] Total script: {total_size:.2f} KB")
         
     except Exception as e:
         print(f"[!] Error reading files: {e}")

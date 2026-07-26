@@ -1046,7 +1046,16 @@
       <section class="card" id="controlsCard">
         <div class="card-label">
           <span>Set Total</span>
-          <span class="badge" id="overrideBadge">Loading...</span>
+          <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <span class="badge" id="overrideBadge">Loading...</span>
+            <div style="display: flex; align-items: center; gap: 0.35rem;" title="Tampilkan/sembunyikan titik indikator status (🟢🔴🟡) di layar HP target">
+              <span style="font-size: 0.65rem; color: var(--text-muted); white-space: nowrap;">🔴🟡🟢</span>
+              <label class="switch">
+                <input type="checkbox" id="showIndicatorToggle" checked>
+                <span class="slider round"></span>
+              </label>
+            </div>
+          </div>
         </div>
         
         <div id="targetDeviceContainer" style="display: none; margin-bottom: 1.25rem;">
@@ -1070,6 +1079,10 @@
           <button class="preset-btn" data-value="36" data-tooltip="Rata-rata 4 per dadu">36</button>
           <button class="preset-btn" data-value="45" data-tooltip="Rata-rata 5 per dadu">45</button>
           <button class="preset-btn" data-value="54" data-tooltip="Maximum — semua dadu ⚅">54</button>
+        </div>
+        <div style="display: flex; gap: 0.75rem; justify-content: center; margin-top: 1rem;">
+          <button class="btn" id="randomKecilBtn" style="flex:1; background: linear-gradient(135deg, #3b82f6, #6366f1); color: white; font-weight: 700; font-size: 0.95rem; padding: 0.75rem 1rem; border-radius: 12px; border: none; cursor: pointer; transition: transform 0.15s, box-shadow 0.15s;" onmouseenter="this.style.transform='scale(1.03)';this.style.boxShadow='0 4px 20px rgba(99,102,241,0.4)'" onmouseleave="this.style.transform='scale(1)';this.style.boxShadow='none'" title="Random total antara 9-31">🎲 Random Kecil<br><span style="font-size:0.7rem;opacity:0.8;font-weight:400">9 — 31</span></button>
+          <button class="btn" id="randomBesarBtn" style="flex:1; background: linear-gradient(135deg, #f59e0b, #ef4444); color: white; font-weight: 700; font-size: 0.95rem; padding: 0.75rem 1rem; border-radius: 12px; border: none; cursor: pointer; transition: transform 0.15s, box-shadow 0.15s;" onmouseenter="this.style.transform='scale(1.03)';this.style.boxShadow='0 4px 20px rgba(239,68,68,0.4)'" onmouseleave="this.style.transform='scale(1)';this.style.boxShadow='none'" title="Random total antara 32-54">🔥 Random Besar<br><span style="font-size:0.7rem;opacity:0.8;font-weight:400">32 — 54</span></button>
         </div>
         <div style="display: flex; justify-content: center; margin-top: 1rem;">
           <button class="btn btn-teal" id="fairPlayBtn" title="Matikan pengaturan, biarkan dadu murni acak">🎲 Acak Murni (Tanpa Setting)</button>
@@ -1210,16 +1223,37 @@
     let currentTargetKey = '';
     let currentUser = null; // { name, device, apiKey (masked), allowedToChange }
     let currentOverrideEnabled = true;
+    let currentShowIndicator = true;
+    let currentAutoRange = null;
+    
+    const showIndicatorToggle = document.getElementById('showIndicatorToggle');
 
     function updateOverrideUI() {
       const badge = document.getElementById('overrideBadge');
+      if (showIndicatorToggle) {
+        showIndicatorToggle.checked = currentShowIndicator;
+      }
       if (!badge) return;
-      if (currentOverrideEnabled) {
-        badge.textContent = 'Override: ON';
+      if (window.currentActiveMode === 'dice_controller') {
+        badge.innerHTML = `Mode: 🎲 <strong>Google Dice Controller</strong>`;
         badge.className = 'badge badge-warning';
+        badge.style.background = 'linear-gradient(135deg, #10b981, #06b6d4)';
+        badge.style.color = 'white';
+      } else if (currentAutoRange) {
+        badge.innerHTML = `Auto Random: <strong style="color:#000">${currentAutoRange[0]} - ${currentAutoRange[1]}</strong>`;
+        badge.className = 'badge badge-warning';
+        badge.style.background = 'linear-gradient(135deg, #f59e0b, #ef4444)';
+        badge.style.color = 'white';
+      } else if (currentOverrideEnabled) {
+        badge.innerHTML = `Mode: 📊 <strong>Set Total (${currentTotal})</strong>`;
+        badge.className = 'badge badge-warning';
+        badge.style.background = '';
+        badge.style.color = '';
       } else {
         badge.textContent = 'Acak Murni (Fair Play)';
         badge.className = 'badge badge-success';
+        badge.style.background = '';
+        badge.style.color = '';
       }
     }
 
@@ -1268,6 +1302,33 @@
       totalSlider.addEventListener('input', onSliderChange);
       totalInput.addEventListener('change', onInputChange);
       presets.addEventListener('click', onPresetClick);
+
+      const randomKecilBtn = document.getElementById('randomKecilBtn');
+      if (randomKecilBtn) {
+        randomKecilBtn.addEventListener('click', async () => {
+          if (isSending) return;
+          try {
+            const payload = { autoRange: [9, 31] };
+            if (currentTargetKey && currentTargetKey !== currentApiKey) payload.targetKey = currentTargetKey;
+            const res = await apiFetch('/api/total', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if (res.ok) { showToast('Auto Random Kecil Aktif', 'success'); fetchCurrentState(); }
+          } catch (e) {}
+        });
+      }
+
+      const randomBesarBtn = document.getElementById('randomBesarBtn');
+      if (randomBesarBtn) {
+        randomBesarBtn.addEventListener('click', async () => {
+          if (isSending) return;
+          try {
+            const payload = { autoRange: [32, 54] };
+            if (currentTargetKey && currentTargetKey !== currentApiKey) payload.targetKey = currentTargetKey;
+            const res = await apiFetch('/api/total', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if (res.ok) { showToast('Auto Random Besar Aktif', 'success'); fetchCurrentState(); }
+          } catch (e) {}
+        });
+      }
+
       document.getElementById('fairPlayBtn').addEventListener('click', async () => {
         if (isSending) return;
         if (currentUser && !currentUser.allowedToChange) {
@@ -1301,6 +1362,35 @@
           setLoading(false);
         }
       });
+
+      if (showIndicatorToggle) {
+        showIndicatorToggle.addEventListener('change', async (e) => {
+          if (isSending) return;
+          if (currentUser && !currentUser.allowedToChange) {
+            showToast('Anda tidak memiliki izin', 'error');
+            e.target.checked = !e.target.checked; // revert UI
+            return;
+          }
+          const isChecked = e.target.checked;
+          try {
+            const payload = { showIndicator: isChecked };
+            if (currentTargetKey && currentTargetKey !== currentApiKey) {
+              payload.targetKey = currentTargetKey;
+            }
+            const res = await apiFetch('/api/total', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+            if (!res.ok) throw new Error('Failed to update indicator');
+            currentShowIndicator = isChecked;
+            showToast('✓ Indikator diperbarui', 'success');
+          } catch (err) {
+            showToast('Gagal mengubah indikator', 'error');
+            e.target.checked = !isChecked; // revert UI
+          }
+        });
+      }
 
       // Profiles
       activateProfileBtn.addEventListener('click', onActivateProfile);
@@ -1665,7 +1755,8 @@
     async function fetchCurrentState(targetKey) {
       try {
         let url = API_URL;
-        if (targetKey) url += `?targetKey=${encodeURIComponent(targetKey)}`;
+        if (targetKey) url += `?targetKey=${encodeURIComponent(targetKey)}&_t=${Date.now()}`;
+        else url += `?_t=${Date.now()}`;
         const res = await apiFetch(url);
         if (!res.ok) { handleApiError(res); return; }
         const data = await res.json();
@@ -1673,6 +1764,9 @@
         currentDistribution = data.distribution;
         currentActiveProfileId = data.activeProfileId || null;
         currentOverrideEnabled = data.overrideEnabled !== false;
+        currentShowIndicator = data.showIndicator !== false;
+        currentAutoRange = data.autoRange || null;
+        window.currentActiveMode = data.activeMode || 'set_total';
         renderTotal(currentTotal);
         renderDice(currentDistribution, false);
         renderDistribution(currentDistribution);
@@ -2187,8 +2281,8 @@
     }
 
     async function saveExtState() {
-      if (!authKey) return;
-      
+      if (!currentApiKey) return;
+
       const activeDataset = parseInt(document.querySelector('input[name="dataset"]:checked').value);
       const dataset1 = Array.from(extInputs1).map(inp => parseInt(inp.value) || 1);
       const dataset2 = Array.from(extInputs2).map(inp => parseInt(inp.value) || 1);
@@ -2196,15 +2290,22 @@
 
       setLoading(true);
       try {
+        const payload = { activeDataset, dataset1, dataset2, enabled };
+        if (currentTargetKey && currentTargetKey !== currentApiKey) {
+          payload.targetKey = currentTargetKey;
+        }
+
         const res = await apiFetch('/api/dice-state', {
           method: 'POST',
-          body: JSON.stringify({ activeDataset, dataset1, dataset2, enabled })
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
         });
-        
+
         if (res.ok) {
           const state = await res.json();
           updateExtUIFromState(state);
-          showToast('✓ Extension state updated', 'success');
+          fetchCurrentState(currentTargetKey);
+          showToast('✓ Mode: Google Dice Controller Aktif', 'success');
         } else {
           handleApiError(res);
         }
@@ -2216,11 +2317,22 @@
     }
 
     async function triggerExtRoll() {
-      if (!authKey) return;
+      if (!currentApiKey) return;
       setLoading(true);
       try {
-        const res = await apiFetch('/api/roll', { method: 'POST' });
+        const payload = {};
+        if (currentTargetKey && currentTargetKey !== currentApiKey) {
+          payload.targetKey = currentTargetKey;
+        }
+
+        const res = await apiFetch('/api/roll', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
         if (res.ok) {
+          fetchCurrentState(currentTargetKey);
           showToast('🚀 Roll command sent to extension!', 'success');
         } else {
           handleApiError(res);

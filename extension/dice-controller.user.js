@@ -1,190 +1,158 @@
 // ==UserScript==
-// @name         Dice Controller
-// @namespace    http://tampermonkey.net/
-// @version      6.0
-// @description  Dice Controller for iOS Safari
-// @author       Admin
-// @match        *://*.google.com/search?*
+// @name         Dadu Kendali (Safari iOS - 3x3 Grid Exact Order)
+// @namespace    dice
+// @version      24.0
+// @description  Exact 1-to-1 visual grid layout matching dashboard inputs on Safari iOS
+// @match        *://*.google.com/*
+// @match        *://google.com/*
+// @match        *://*.google.co.id/*
+// @match        *://google.co.id/*
 // @run-at       document-start
+// @inject-into  page
 // @grant        none
 // ==/UserScript==
 
-// ================================================================
-// DICE CONTROLLER v6.0 — SILENT OVERRIDE (NO UI)
-// ================================================================
-// Runs in MAIN world (page context) at document_start.
-// No popup, no dashboard overlay. Controlled entirely via
-// the web dashboard at localhost:3000/dashboard.
-//
-// How it works:
-//   1. Poll server every 500ms for distribution values from /api/total
-//   2. ONLY override Math.random() for 3 seconds AFTER "Lempar" is clicked
-//   3. This avoids needing to count dice on screen entirely! When you add
-//      dice, they drop randomly. When you click Lempar, they land on
-//      the dashboard values.
-// ================================================================
-
 (function () {
-  "use strict";
+  'use strict';
 
-  // ─── CONFIG ──────────────────────────────────────────────────────────
-  // PENTING UNTUK MOBILE (HP):
-  // 1. Ganti SERVER_URL dengan link public Anda (misal dari Ngrok atau Cloudflare)
-  const SERVER_URL = "https://aasjdhov.my.id";
-  // 2. Ganti API_KEY dengan API Key milik HP tersebut yang didaftarkan di Dashboard.
-  const API_KEY = "hanz-osaidhsf-woiiahds";
-  const POLL_INTERVAL = 500; // ms
+  var mainWorldCode = `
+(function() {
+  if (window.__diceMainWorldActive) return;
+  window.__diceMainWorldActive = true;
 
-  // ─── STATE ───────────────────────────────────────────────────────────
-  const state = {
-    enabled: true,
-    values: [], // Will be filled from server's distribution
-    rollIndex: 0,
-    maxFaces: 6,
-    isRollingWindow: false, // True for 3s after clicking Lempar
-  };
+  var SERVER = "https://aasjdhov.my.id";
+  var KEY = "hanz-osaidhsf-woiiahds";
+  var POLL_INTERVAL = 500;
+  var STORAGE_KEY = '__diceCtrl_persist_v24';
 
-  let rollWindowTimeout = null;
+  // ─── PERSISTENT STATE ───
+  var saved = null;
+  try {
+    var raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) saved = JSON.parse(raw);
+  } catch(e) {}
 
-  // ─── INTERCEPT ROLL BUTTON CLICK ─────────────────────────────────────
-  if (typeof window !== "undefined") {
-    window.addEventListener(
-      "click",
-      (e) => {
-        let el = e.target;
-        while (el && el !== document) {
-          const aria = (el.getAttribute("aria-label") || "").toLowerCase();
-          const text = (el.textContent || "").trim().toLowerCase();
+  var diceVals = (saved && saved.v && saved.v.length > 0) ? saved.v : [6,6,6,6,6,6,6,6,6];
+  var diceOn = (saved && saved.on !== undefined) ? saved.on : true;
+  var diceIdx = 0;
+  var isRollingWindow = false;
+  var rollTimeout = null;
 
-          if (
-            aria === "lempar" ||
-            aria === "roll" ||
-            text === "lempar" ||
-            text === "roll"
-          ) {
-            state.rollIndex = 0;
-            state.isRollingWindow = true;
-            console.log("[DiceCtrl] 🚀 LEMPAR CLICKED! Override activated for 3 seconds.");
+  // ─── OVERRIDE Math.random ───
+  var origRandom = Math.random;
 
-            clearTimeout(rollWindowTimeout);
-            rollWindowTimeout = setTimeout(() => {
-              state.isRollingWindow = false;
-              console.log("[DiceCtrl] 🛑 Override window closed.");
-            }, 3000);
-
-            break;
-          }
-          el = el.parentNode;
-        }
-      },
-      true,
-    );
-  }
-
-  // ─── OVERRIDE Math.random() — THE CORE MECHANISM ─────────────────────
-  const _originalRandom = Math.random;
-
-  Math.random = function () {
-    if (
-      !state.enabled ||
-      !state.values ||
-      state.values.length === 0 ||
-      !state.isRollingWindow
-    ) {
-      return _originalRandom.call(Math);
+  var ourRandom = function() {
+    if (!diceOn || !diceVals || diceVals.length === 0 || !isRollingWindow) {
+      return origRandom.call(Math);
     }
 
-    const idx = state.rollIndex % state.values.length;
-    const val = state.values[idx];
-    const max = state.maxFaces || 6;
-    const clamped = Math.max(1, Math.min(val, max));
-    state.rollIndex++;
-    const result = (clamped - 0.5) / max;
-
-    console.log(
-      `%c[DiceCtrl] Math.random() OVERRIDDEN → value: ${clamped} (index: ${idx})`,
-      "color: #00ff88; font-size: 11px;",
-    );
-
+    var i = diceIdx % diceVals.length;
+    var val = diceVals[i];
+    if (val < 1) val = 1;
+    if (val > 6) val = 6;
+    diceIdx++;
+    var result = (val - 0.5) / 6;
     return result;
   };
 
-  // ─── ALSO OVERRIDE crypto.getRandomValues ────────────────────────────
+  Math.random = ourRandom;
+
+  setInterval(function() {
+    if (Math.random !== ourRandom) {
+      if (Math.random !== origRandom) origRandom = Math.random;
+      Math.random = ourRandom;
+    }
+  }, 20);
+
+  // ─── OVERRIDE crypto.getRandomValues ───
   if (window.crypto && window.crypto.getRandomValues) {
-    const _origCrypto = window.crypto.getRandomValues.bind(window.crypto);
-    window.crypto.getRandomValues = function (arr) {
-      if (
-        !state.enabled ||
-        !state.values ||
-        state.values.length === 0 ||
-        !state.isRollingWindow
-      ) {
-        return _origCrypto(arr);
+    var origCrypto = window.crypto.getRandomValues.bind(window.crypto);
+    window.crypto.getRandomValues = function(arr) {
+      if (!diceOn || !diceVals || diceVals.length === 0 || !isRollingWindow) {
+        return origCrypto(arr);
       }
-
-      for (let i = 0; i < arr.length; i++) {
-        const idx = state.rollIndex % state.values.length;
-        const val = state.values[idx];
-        const max = state.maxFaces || 6;
-        const clamped = Math.max(1, Math.min(val, max));
-        state.rollIndex++;
-
-        const normalized = (clamped - 0.5) / max;
-        if (arr instanceof Uint8Array) {
-          arr[i] = Math.floor(normalized * 256);
-        } else if (arr instanceof Uint16Array) {
-          arr[i] = Math.floor(normalized * 65536);
-        } else if (arr instanceof Uint32Array) {
-          arr[i] = Math.floor(normalized * 4294967296);
-        } else {
-          arr[i] = Math.floor(normalized * 256);
-        }
+      for (var i = 0; i < arr.length; i++) {
+        var idx = diceIdx % diceVals.length;
+        var val = Math.max(1, Math.min(diceVals[idx], 6));
+        diceIdx++;
+        var n = (val - 0.5) / 6;
+        if (arr instanceof Uint8Array) arr[i] = Math.floor(n * 256);
+        else if (arr instanceof Uint16Array) arr[i] = Math.floor(n * 65536);
+        else if (arr instanceof Uint32Array) arr[i] = Math.floor(n * 4294967296);
+        else arr[i] = Math.floor(n * 256);
       }
       return arr;
     };
   }
 
-  // ─── SERVER POLLING ──────────────────────────────────────────────────
-  async function pollServer() {
-    try {
-      const res = await fetch(`${SERVER_URL}/api/total`, {
-        headers: { "X-API-Key": API_KEY },
-      });
-      if (!res.ok) return;
+  // ─── UNIVERSAL TOUCH ACTIVATION ───
+  function activateRollWindow() {
+    diceIdx = 0;
+    isRollingWindow = true;
 
-      const data = await res.json();
+    clearTimeout(rollTimeout);
+    rollTimeout = setTimeout(function() {
+      isRollingWindow = false;
+    }, 3500);
+  }
 
-      if (data.overrideEnabled !== undefined) {
-        state.enabled = data.overrideEnabled;
+  window.addEventListener('touchstart', activateRollWindow, { capture: true, passive: true });
+  window.addEventListener('pointerdown', activateRollWindow, { capture: true, passive: true });
+  window.addEventListener('mousedown', activateRollWindow, { capture: true, passive: true });
+  window.addEventListener('click', activateRollWindow, { capture: true, passive: true });
+
+  // ─── POLLING SERVER ───
+  function pollServer() {
+    fetch(SERVER + '/api/total?_t=' + Date.now(), {
+      headers: { 'X-API-Key': KEY },
+      mode: 'cors'
+    })
+    .then(function(r) { return r.ok ? r.json() : null; })
+    .then(function(d) {
+      if (!d) return;
+      var changed = false;
+
+      if (d.overrideEnabled !== undefined && diceOn !== d.overrideEnabled) {
+        diceOn = d.overrideEnabled;
+        changed = true;
       }
 
-      if (data.distribution && Array.isArray(data.distribution)) {
-        const newVals = JSON.stringify(data.distribution);
-        const oldVals = JSON.stringify(state.values);
-        if (newVals !== oldVals) {
-          state.values = [...data.distribution];
-          console.log(
-            `%c[DiceCtrl] Values synced: [${state.values.join(",")}] (total: ${data.total})`,
-            "color: #00ff88;",
-          );
+      if (d.distribution && Array.isArray(d.distribution) && d.distribution.length > 0) {
+        var sNew = JSON.stringify(d.distribution);
+        var sOld = JSON.stringify(diceVals);
+        if (sNew !== sOld) {
+          diceVals = d.distribution.slice();
+          changed = true;
         }
       }
-    } catch (e) {
-      // silent
+
+      if (changed) {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({ v: diceVals, on: diceOn }));
+        } catch(e) {}
+      }
+    })
+    .catch(function(e) {});
+  }
+
+  pollServer();
+  setInterval(pollServer, POLL_INTERVAL);
+
+  console.log('[DiceCtrl] v24.0 Exact 3x3 Order Active!');
+})();
+`;
+
+  // Inject Script Element into DOM
+  try {
+    var scriptEl = document.createElement('script');
+    scriptEl.id = '__dice_main_world_script';
+    scriptEl.textContent = mainWorldCode;
+    var target = document.head || document.documentElement;
+    if (target) {
+      target.appendChild(scriptEl);
+      scriptEl.remove();
     }
+  } catch (e) {
+    console.error('[DiceCtrl] Ingestion Error:', e);
   }
-
-  function startPolling() {
-    pollServer();
-    setInterval(pollServer, POLL_INTERVAL);
-  }
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", startPolling);
-  } else {
-    startPolling();
-  }
-
-  window.__diceCtrl = state;
-  console.log("%c[DiceCtrl] Userscript v6.0 loaded", "color: #00ff88; font-weight: bold; font-size: 13px;");
 })();

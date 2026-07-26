@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Setup Dice Controller</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0a0a0a;
+      color: #e0e0e0;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    h1 {
+      font-size: 24px;
+      margin-bottom: 8px;
+      color: #fff;
+    }
+    .subtitle {
+      color: #888;
+      margin-bottom: 24px;
+      font-size: 14px;
+    }
+    .card {
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .card h2 {
+      font-size: 16px;
+      color: #4ade80;
+      margin-bottom: 12px;
+    }
+    .card h3 {
+      font-size: 14px;
+      color: #fbbf24;
+      margin-bottom: 8px;
+    }
+    .step {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+      align-items: flex-start;
+    }
+    .step-num {
+      background: #4ade80;
+      color: #000;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+    .step-text {
+      font-size: 14px;
+      line-height: 1.6;
+      padding-top: 3px;
+    }
+    .step-text code {
+      background: #2a2a2a;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 13px;
+      color: #4ade80;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 12px;
+      background: #111;
+      border: 1px solid #333;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 14px;
+      font-family: monospace;
+      margin-bottom: 12px;
+    }
+    input[type="text"]:focus {
+      outline: none;
+      border-color: #4ade80;
+    }
+    .btn {
+      display: inline-block;
+      padding: 12px 24px;
+      background: #4ade80;
+      color: #000;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      text-align: center;
+      width: 100%;
+      margin-bottom: 8px;
+    }
+    .btn:active {
+      background: #22c55e;
+    }
+    .btn-secondary {
+      background: #333;
+      color: #fff;
+    }
+    .btn-secondary:active {
+      background: #444;
+    }
+    .btn-big {
+      padding: 16px 24px;
+      font-size: 16px;
+      background: linear-gradient(135deg, #4ade80, #22d3ee);
+      border-radius: 12px;
+    }
+    .btn-big:active {
+      opacity: 0.9;
+    }
+    .code-box {
+      background: #111;
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 12px;
+      font-family: monospace;
+      font-size: 10px;
+      word-break: break-all;
+      color: #4ade80;
+      margin: 12px 0;
+      max-height: 80px;
+      overflow-y: auto;
+      user-select: all;
+      -webkit-user-select: all;
+    }
+    .divider {
+      border: none;
+      border-top: 1px solid #333;
+      margin: 24px 0;
+    }
+    .warning {
+      background: #332200;
+      border: 1px solid #664400;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 13px;
+      color: #fbbf24;
+      margin-bottom: 16px;
+    }
+    .warning strong { color: #fbbf24; }
+    .success-msg {
+      background: #0a2e1a;
+      border: 1px solid #1a5e3a;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 13px;
+      color: #4ade80;
+      margin: 12px 0;
+      display: none;
+    }
+    .error-msg {
+      background: #2e0a0a;
+      border: 1px solid #5e1a1a;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 13px;
+      color: #ff4444;
+      margin: 12px 0;
+      display: none;
+    }
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      background: #111;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-bottom: 16px;
+    }
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .status-dot.red { background: #ff4444; }
+    .status-dot.green { background: #4ade80; }
+    .status-dot.yellow { background: #fbbf24; }
+    .length-info {
+      font-size: 12px;
+      color: #666;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎲 Dice Controller Setup</h1>
+    <p class="subtitle">Install dice controller di iPhone kamu — <strong>tanpa Userscripts app</strong></p>
+
+    <!-- API Key Input -->
+    <div class="card">
+      <h2>🔑 Step 1: Masukkan API Key</h2>
+      <input type="text" id="apiKeyInput" placeholder="Masukkan API Key..." value="">
+      <button class="btn btn-secondary" onclick="generateBookmarklet()">🔄 Generate Bookmarklet</button>
+      <div id="genSuccess" class="success-msg"></div>
+      <div id="genError" class="error-msg"></div>
+    </div>
+
+    <!-- Generated Bookmarklet -->
+    <div class="card" id="bookmarkletCard" style="display: none;">
+      <h2>📑 Step 2: Copy Bookmarklet</h2>
+      
+      <div class="status-bar" id="statusBar">
+        <div class="status-dot yellow"></div>
+        <span>Belum di-generate</span>
+      </div>
+
+      <button class="btn btn-big" onclick="copyBookmarklet()">📋 COPY BOOKMARKLET CODE</button>
+      <div id="copySuccess" class="success-msg">✅ Berhasil di-copy!</div>
+      
+      <div class="code-box" id="bookmarkletCode">...</div>
+      <div class="length-info" id="lengthInfo"></div>
+    </div>
+
+    <!-- Installation Steps -->
+    <div class="card" id="installCard" style="display: none;">
+      <h2>📱 Step 3: Install di Safari</h2>
+      
+      <div class="warning">
+        ⚠️ <strong>PENTING:</strong> Metode ini menggunakan Bookmarklet — kamu perlu tap bookmark setiap buka Google Dice. Tapi ini 100% work di iOS Safari!
+      </div>
+
+      <h3>Cara Install:</h3>
+
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-text">
+          Di Safari, buka halaman apa saja → tap tombol <strong>Share</strong> (ikon kotak dengan panah ke atas)
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-text">
+          Pilih <strong>"Add Bookmark"</strong> / <strong>"Tambah Penanda"</strong><br>
+          Beri nama: <code>🎲 Dice</code><br>
+          Simpan di <strong>Favorites</strong>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-text">
+          Buka <strong>Bookmarks</strong> (ikon buku) → cari <code>🎲 Dice</code> → tap <strong>Edit</strong>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-text">
+          <strong>Hapus semua</strong> isi field URL/Address → <strong>Paste kode bookmarklet</strong> yang sudah di-copy tadi → <strong>Done</strong>
+        </div>
+      </div>
+
+      <hr class="divider">
+
+      <h3>Cara Pakai (setiap kali main dadu):</h3>
+
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-text">
+          Buka Google → search <code>roll dice</code> atau <code>lempar dadu</code>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-text">
+          Tap <strong>address bar</strong> → ketik <code>dice</code> → tap bookmark <code>🎲 Dice</code> dari suggestions
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-text">
+          Lihat <strong>titik hijau</strong> 🟢 di pojok kanan bawah = <strong>BERHASIL!</strong><br>
+          <span style="color: #888;">🔴 Merah = gagal koneksi ke server<br>🟡 Kuning = sedang mencoba koneksi</span>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-text">
+          Sekarang atur dadu dari <strong>Dashboard</strong>, lalu tap <strong>Lempar/Roll</strong> di Google!
+        </div>
+      </div>
+    </div>
+
+    <!-- Alternative: Manual Paste -->
+    <div class="card" id="manualCard" style="display: none;">
+      <h2>🔧 Alternatif: Manual Paste (Tanpa Install)</h2>
+      <p style="color: #888; font-size: 13px; margin-bottom: 12px;">
+        Jika tidak mau install bookmark, kamu bisa paste langsung setiap kali:
+      </p>
+
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-text">
+          Buka Google Dice di Safari
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-text">
+          Tap address bar → paste kode bookmarklet → <strong>Enter</strong>
+        </div>
+      </div>
+
+      <div class="warning">
+        ⚠️ Safari MENGHAPUS <code>javascript:</code> saat paste! Kamu harus <strong>ketik manual</strong> <code>javascript:</code> di depan kode yang di-paste.
+      </div>
+    </div>
+
+    <!-- Test Connection -->
+    <div class="card">
+      <h2>🔧 Test Koneksi Server</h2>
+      <button class="btn btn-secondary" onclick="testConnection()">Test Koneksi</button>
+      <div id="testResult" style="margin-top: 12px; font-size: 13px; font-family: monospace;"></div>
+    </div>
+  </div>
+
+  <script>
+    const serverUrl = window.location.origin;
+    let currentApiKey = '';
+    let currentBookmarklet = '';
+
+    // Load saved key
+    try {
+      currentApiKey = localStorage.getItem('dice_api_key') || '';
+      document.getElementById('apiKeyInput').value = currentApiKey;
+      if (currentApiKey) {
+        generateBookmarklet();
+      }
+    } catch(e) {}
+
+    async function generateBookmarklet() {
+      const key = document.getElementById('apiKeyInput').value.trim();
+      if (!key) {
+        showError('Masukkan API Key dulu!');
+        return;
+      }
+
+      currentApiKey = key;
+      try { localStorage.setItem('dice_api_key', key); } catch(e) {}
+
+      const successEl = document.getElementById('genSuccess');
+      const errorEl = document.getElementById('genError');
+      successEl.style.display = 'none';
+      errorEl.style.display = 'none';
+
+      try {
+        const res = await fetch(`${serverUrl}/api/bookmarklet?key=${encodeURIComponent(key)}`);
+        const data = await res.json();
+
+        if (!res.ok) {
+          showError(data.error || 'Gagal generate bookmarklet');
+          return;
+        }
+
+        currentBookmarklet = data.bookmarklet;
+        
+        // Show cards
+        document.getElementById('bookmarkletCard').style.display = 'block';
+        document.getElementById('installCard').style.display = 'block';
+        document.getElementById('manualCard').style.display = 'block';
+
+        // Update UI
+        document.getElementById('bookmarkletCode').textContent = currentBookmarklet;
+        document.getElementById('lengthInfo').textContent = `Panjang: ${data.length} karakter | User: ${data.user} (${data.device})`;
+        
+        const statusBar = document.getElementById('statusBar');
+        statusBar.innerHTML = `<div class="status-dot green"></div><span>✅ Bookmarklet siap untuk ${data.user} (${data.device})</span>`;
+
+        successEl.textContent = `✅ Bookmarklet berhasil dibuat untuk ${data.user}!`;
+        successEl.style.display = 'block';
+        setTimeout(() => { successEl.style.display = 'none'; }, 3000);
+
+      } catch(e) {
+        showError('Gagal menghubungi server: ' + e.message);
+      }
+    }
+
+    function showError(msg) {
+      const errorEl = document.getElementById('genError');
+      errorEl.textContent = '❌ ' + msg;
+      errorEl.style.display = 'block';
+      setTimeout(() => { errorEl.style.display = 'none'; }, 4000);
+    }
+
+    function copyBookmarklet() {
+      if (!currentBookmarklet) {
+        showError('Generate bookmarklet dulu!');
+        return;
+      }
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(currentBookmarklet).then(() => {
+          showCopySuccess();
+        }).catch(() => {
+          fallbackCopy(currentBookmarklet);
+        });
+      } else {
+        fallbackCopy(currentBookmarklet);
+      }
+    }
+
+    function fallbackCopy(text) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+      document.body.appendChild(ta);
+      ta.select();
+      ta.setSelectionRange(0, ta.value.length);
+      document.execCommand('copy');
+      ta.remove();
+      showCopySuccess();
+    }
+
+    function showCopySuccess() {
+      const el = document.getElementById('copySuccess');
+      el.style.display = 'block';
+      setTimeout(() => { el.style.display = 'none'; }, 3000);
+    }
+
+    async function testConnection() {
+      const resultEl = document.getElementById('testResult');
+      const key = document.getElementById('apiKeyInput').value.trim();
+      
+      if (!key) {
+        resultEl.innerHTML = '<span style="color:#ff4444">❌ Masukkan API Key dulu!</span>';
+        return;
+      }
+
+      resultEl.innerHTML = '<span style="color:#fbbf24">⏳ Testing...</span>';
+
+      try {
+        const res = await fetch(`${serverUrl}/api/total`, {
+          headers: { 'X-API-Key': key }
+        });
+        
+        if (res.ok) {
+          const data = await res.json();
+          resultEl.innerHTML = `<span style="color:#4ade80">✅ Koneksi berhasil!</span><br>` +
+            `Total: ${data.total}<br>` +
+            `Distribution: [${data.distribution.join(', ')}]<br>` +
+            `Override: ${data.overrideEnabled ? 'ON' : 'OFF'}`;
+        } else if (res.status === 401) {
+          resultEl.innerHTML = '<span style="color:#ff4444">❌ API Key tidak valid!</span>';
+        } else {
+          resultEl.innerHTML = `<span style="color:#ff4444">❌ Server error: ${res.status}</span>`;
+        }
+      } catch(e) {
+        resultEl.innerHTML = `<span style="color:#ff4444">❌ Gagal koneksi: ${e.message}</span>`;
+      }
+    }
+  </script>
+</body>
+</html>

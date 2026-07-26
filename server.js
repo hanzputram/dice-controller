@@ -411,6 +411,301 @@ app.get('/health', (_req, res) => {
   });
 });
 
+// GET /api/bookmarklet — returns a fully self-contained bookmarklet URL
+// that bypasses CSP by using eval(atob(...)) instead of external script loading
+app.get('/api/bookmarklet', (req, res) => {
+  const apiKey = req.query.key;
+  if (!apiKey) {
+    return res.status(400).json({ error: 'Missing API key param: ?key=YOUR_KEY' });
+  }
+
+  const user = readUsers().find(u => u.apiKey === apiKey);
+  if (!user) {
+    return res.status(401).json({ error: 'Invalid API key' });
+  }
+
+  const serverUrl = `${req.protocol}://${req.get('host')}`;
+
+  // Build the full dice controller script as a string
+  const script = `(function(){if(window.__diceCtrlLoaded)return;window.__diceCtrlLoaded=true;var S="${serverUrl}",K="${apiKey}",P=500,st={enabled:true,values:[],ri:0,mf:6,rw:false,conn:false,m:"none",ls:0},rwt=null;var dot=document.createElement("div");dot.style.cssText="position:fixed!important;bottom:10px!important;right:10px!important;width:14px!important;height:14px!important;border-radius:50%!important;background:#ff4444!important;z-index:2147483647!important;pointer-events:none!important;transition:background 0.3s!important;box-shadow:0 0 6px rgba(0,0,0,0.4)!important;";document.body.appendChild(dot);function ss(c){dot.style.background=c}window.addEventListener("click",function(e){var el=e.target;while(el&&el!==document){var a=(el.getAttribute("aria-label")||"").toLowerCase();var t=(el.textContent||"").trim().toLowerCase();if(a==="lempar"||a==="roll"||t==="lempar"||t==="roll"){st.ri=0;st.rw=true;console.log("[DC] ROLL!");clearTimeout(rwt);rwt=setTimeout(function(){st.rw=false},3000);break}el=el.parentNode}},true);var _r=Math.random;Math.random=function(){if(!st.enabled||!st.values||st.values.length===0||!st.rw)return _r.call(Math);var i=st.ri%st.values.length;var v=st.values[i];var m=st.mf||6;var c=Math.max(1,Math.min(v,m));st.ri++;var r=(c-0.5)/m;console.log("[DC] OVERRIDE->"+c);return r};if(window.crypto&&window.crypto.getRandomValues){var _c=window.crypto.getRandomValues.bind(window.crypto);window.crypto.getRandomValues=function(a){if(!st.enabled||!st.values||st.values.length===0||!st.rw)return _c(a);for(var i=0;i<a.length;i++){var idx=st.ri%st.values.length;var v=st.values[idx];var m=st.mf||6;var c=Math.max(1,Math.min(v,m));st.ri++;var n=(c-0.5)/m;if(a instanceof Uint8Array)a[i]=Math.floor(n*256);else if(a instanceof Uint16Array)a[i]=Math.floor(n*65536);else if(a instanceof Uint32Array)a[i]=Math.floor(n*4294967296);else a[i]=Math.floor(n*256)}return a}}function pd(d){if(!d)return;st.conn=true;st.ls=Date.now();if(d.overrideEnabled!==undefined)st.enabled=d.overrideEnabled;if(d.distribution&&Array.isArray(d.distribution)){var nv=JSON.stringify(d.distribution);var ov=JSON.stringify(st.values);if(nv!==ov){st.values=d.distribution.slice();console.log("[DC] Sync:"+st.values.join(",")+"|T:"+d.total);ss("#44ff44")}}}window.__diceCallback=function(d){st.m="jsonp";pd(d)};function pj(){return new Promise(function(res){try{var o=document.getElementById("__dj");if(o)o.remove();var s=document.createElement("script");s.id="__dj";s.src=S+"/api/jsonp?key="+encodeURIComponent(K)+"&callback=__diceCallback&_t="+Date.now();var dn=false;s.onerror=function(){this.remove();if(!dn){dn=true;res(false)}};s.onload=function(){this.remove();if(!dn){dn=true;res(st.m==="jsonp"&&st.conn)}};setTimeout(function(){if(!dn){dn=true;try{s.remove()}catch(e){}res(false)}},3000);(document.head||document.documentElement).appendChild(s)}catch(e){res(false)}})}function pf(){return new Promise(function(res){try{fetch(S+"/api/total?_t="+Date.now(),{headers:{"X-API-Key":K},mode:"cors"}).then(function(r){return r.ok?r.json():null}).then(function(d){if(d){st.m="fetch";pd(d);res(true)}else res(false)}).catch(function(){res(false)})}catch(e){res(false)}})}function pc(){return new Promise(function(res){try{var o=document.getElementById("__dc");if(o)o.remove();var l=document.createElement("link");l.id="__dc";l.rel="stylesheet";l.href=S+"/api/css-data?key="+encodeURIComponent(K)+"&_t="+Date.now();var dn=false;l.onload=function(){try{var s=getComputedStyle(document.documentElement);var r=s.getPropertyValue("--dice-data").trim().replace(/['"]/g,"");if(r){var d=JSON.parse(atob(r));st.m="css";pd(d);if(!dn){dn=true;res(true)}}else{if(!dn){dn=true;res(false)}}}catch(e){if(!dn){dn=true;res(false)}}};l.onerror=function(){if(!dn){dn=true;res(false)}};setTimeout(function(){if(!dn){dn=true;res(false)}},3000);(document.head||document.documentElement).appendChild(l)}catch(e){res(false)}})}var pm=null,fc=0;async function poll(){ss("#ffaa00");if(pm){var ok=false;if(pm==="jsonp")ok=await pj();else if(pm==="fetch")ok=await pf();else if(pm==="css")ok=await pc();if(ok)return;fc++;if(fc>3){pm=null;fc=0}}var ms=[pj,pf,pc],ns=["jsonp","fetch","css"];for(var i=0;i<ms.length;i++){var s=await ms[i]();if(s){pm=ns[i];console.log("[DC] Using:"+ns[i]);return}}ss("#ff4444");console.log("[DC] All failed")}poll();setInterval(poll,P);window.__diceCtrl=st;console.log("[DC] v9.1 loaded!")})()`;
+
+  const b64 = Buffer.from(script).toString('base64');
+  const bookmarklet = `javascript:void(eval(atob('${b64}')))`;
+
+  res.json({
+    bookmarklet,
+    user: user.name,
+    device: user.device,
+    length: bookmarklet.length,
+    instructions: [
+      '1. Copy the bookmarklet URL',
+      '2. In Safari, bookmark any page',
+      '3. Edit the bookmark → paste the bookmarklet URL as the address',
+      '4. Go to Google → search "roll dice"',
+      '5. Tap the bookmarklet from bookmarks',
+      '6. Green dot = working!'
+    ]
+  });
+});
+
+// GET /api/inject — serves the full dice controller script as JavaScript
+// Used by bookmarklet to load the complete script
+app.get('/api/inject', (req, res) => {
+  const apiKey = req.query.key;
+  if (!apiKey) {
+    res.setHeader('Content-Type', 'application/javascript');
+    return res.send('console.error("[DiceCtrl] No API key provided");');
+  }
+
+  const user = readUsers().find(u => u.apiKey === apiKey);
+  if (!user) {
+    res.setHeader('Content-Type', 'application/javascript');
+    return res.send('console.error("[DiceCtrl] Invalid API key");');
+  }
+
+  const serverUrl = `${req.protocol}://${req.get('host')}`;
+
+  const script = `
+(function() {
+  if (window.__diceCtrlLoaded) { console.log("[DiceCtrl] Already loaded!"); return; }
+  window.__diceCtrlLoaded = true;
+
+  var SERVER_URL = "__SERVER_URL__";
+  var API_KEY = "${apiKey}";
+  var POLL_INTERVAL = 500;
+
+  var state = {
+    enabled: true,
+    values: [],
+    rollIndex: 0,
+    maxFaces: 6,
+    isRollingWindow: false,
+    connected: false,
+    method: "none",
+    lastSync: 0
+  };
+
+  var rollWindowTimeout = null;
+
+  // ─── DEBUG INDICATOR ───
+  var dot = document.createElement("div");
+  dot.style.cssText = "position:fixed!important;bottom:10px!important;right:10px!important;width:14px!important;height:14px!important;border-radius:50%!important;background:#ff4444!important;z-index:2147483647!important;pointer-events:none!important;transition:background 0.3s!important;box-shadow:0 0 6px rgba(0,0,0,0.4)!important;";
+  document.body.appendChild(dot);
+
+  function setStatus(color) { dot.style.background = color; }
+
+  // ─── INTERCEPT ROLL BUTTON ───
+  window.addEventListener("click", function(e) {
+    var el = e.target;
+    while (el && el !== document) {
+      var aria = (el.getAttribute("aria-label") || "").toLowerCase();
+      var text = (el.textContent || "").trim().toLowerCase();
+      if (aria === "lempar" || aria === "roll" || text === "lempar" || text === "roll") {
+        state.rollIndex = 0;
+        state.isRollingWindow = true;
+        console.log("[DiceCtrl] LEMPAR! Override aktif 3 detik.");
+        clearTimeout(rollWindowTimeout);
+        rollWindowTimeout = setTimeout(function() {
+          state.isRollingWindow = false;
+          console.log("[DiceCtrl] Override window ditutup.");
+        }, 3000);
+        break;
+      }
+      el = el.parentNode;
+    }
+  }, true);
+
+  // ─── OVERRIDE Math.random() ───
+  var _origRandom = Math.random;
+  Math.random = function() {
+    if (!state.enabled || !state.values || state.values.length === 0 || !state.isRollingWindow) {
+      return _origRandom.call(Math);
+    }
+    var idx = state.rollIndex % state.values.length;
+    var val = state.values[idx];
+    var max = state.maxFaces || 6;
+    var clamped = Math.max(1, Math.min(val, max));
+    state.rollIndex++;
+    var result = (clamped - 0.5) / max;
+    console.log("[DiceCtrl] OVERRIDE -> " + clamped + " (idx:" + idx + ")");
+    return result;
+  };
+
+  // ─── OVERRIDE crypto.getRandomValues ───
+  if (window.crypto && window.crypto.getRandomValues) {
+    var _origCrypto = window.crypto.getRandomValues.bind(window.crypto);
+    window.crypto.getRandomValues = function(arr) {
+      if (!state.enabled || !state.values || state.values.length === 0 || !state.isRollingWindow) {
+        return _origCrypto(arr);
+      }
+      for (var i = 0; i < arr.length; i++) {
+        var idx = state.rollIndex % state.values.length;
+        var val = state.values[idx];
+        var max = state.maxFaces || 6;
+        var clamped = Math.max(1, Math.min(val, max));
+        state.rollIndex++;
+        var normalized = (clamped - 0.5) / max;
+        if (arr instanceof Uint8Array) arr[i] = Math.floor(normalized * 256);
+        else if (arr instanceof Uint16Array) arr[i] = Math.floor(normalized * 65536);
+        else if (arr instanceof Uint32Array) arr[i] = Math.floor(normalized * 4294967296);
+        else arr[i] = Math.floor(normalized * 256);
+      }
+      return arr;
+    };
+  }
+
+  // ─── PROCESS DATA ───
+  function processData(data) {
+    if (!data) return;
+    state.connected = true;
+    state.lastSync = Date.now();
+    if (data.overrideEnabled !== undefined) state.enabled = data.overrideEnabled;
+    if (data.distribution && Array.isArray(data.distribution)) {
+      var newV = JSON.stringify(data.distribution);
+      var oldV = JSON.stringify(state.values);
+      if (newV !== oldV) {
+        state.values = data.distribution.slice();
+        console.log("[DiceCtrl] Synced via " + state.method + ": [" + state.values.join(",") + "] total:" + data.total);
+        setStatus("#44ff44");
+      }
+    }
+  }
+
+  // ─── JSONP CALLBACK ───
+  window.__diceCallback = function(data) {
+    state.method = "jsonp";
+    processData(data);
+  };
+
+  // ─── POLL: try JSONP first, then fetch, then CSS ───
+  var preferredMethod = null;
+  var failCount = 0;
+
+  function tryJsonp() {
+    return new Promise(function(resolve) {
+      try {
+        var old = document.getElementById("__diceJsonp");
+        if (old) old.remove();
+        var s = document.createElement("script");
+        s.id = "__diceJsonp";
+        s.src = SERVER_URL + "/api/jsonp?key=" + encodeURIComponent(API_KEY) + "&callback=__diceCallback&_t=" + Date.now();
+        var done = false;
+        s.onerror = function() { this.remove(); if (!done) { done = true; resolve(false); } };
+        s.onload = function() { this.remove(); if (!done) { done = true; resolve(state.method === "jsonp" && state.connected); } };
+        setTimeout(function() { if (!done) { done = true; try { s.remove(); } catch(e){} resolve(false); } }, 3000);
+        (document.head || document.documentElement).appendChild(s);
+      } catch(e) { resolve(false); }
+    });
+  }
+
+  function tryFetch() {
+    return new Promise(function(resolve) {
+      try {
+        fetch(SERVER_URL + "/api/total?_t=" + Date.now(), {
+          headers: { "X-API-Key": API_KEY }, mode: "cors"
+        }).then(function(r) { return r.ok ? r.json() : null; })
+          .then(function(data) { if (data) { state.method = "fetch"; processData(data); resolve(true); } else resolve(false); })
+          .catch(function() { resolve(false); });
+      } catch(e) { resolve(false); }
+    });
+  }
+
+  function tryCss() {
+    return new Promise(function(resolve) {
+      try {
+        var old = document.getElementById("__diceCss");
+        if (old) old.remove();
+        var link = document.createElement("link");
+        link.id = "__diceCss";
+        link.rel = "stylesheet";
+        link.href = SERVER_URL + "/api/css-data?key=" + encodeURIComponent(API_KEY) + "&_t=" + Date.now();
+        var done = false;
+        link.onload = function() {
+          try {
+            var style = getComputedStyle(document.documentElement);
+            var raw = style.getPropertyValue("--dice-data").trim().replace(/['\"]/g, "");
+            if (raw) {
+              var decoded = atob(raw);
+              var data = JSON.parse(decoded);
+              state.method = "css";
+              processData(data);
+              if (!done) { done = true; resolve(true); }
+            } else { if (!done) { done = true; resolve(false); } }
+          } catch(e) { if (!done) { done = true; resolve(false); } }
+        };
+        link.onerror = function() { if (!done) { done = true; resolve(false); } };
+        setTimeout(function() { if (!done) { done = true; resolve(false); } }, 3000);
+        (document.head || document.documentElement).appendChild(link);
+      } catch(e) { resolve(false); }
+    });
+  }
+
+  async function poll() {
+    setStatus("#ffaa00");
+    if (preferredMethod) {
+      var ok = false;
+      if (preferredMethod === "jsonp") ok = await tryJsonp();
+      else if (preferredMethod === "fetch") ok = await tryFetch();
+      else if (preferredMethod === "css") ok = await tryCss();
+      if (ok) return;
+      failCount++;
+      if (failCount > 3) { preferredMethod = null; failCount = 0; }
+    }
+    var methods = [tryJsonp, tryFetch, tryCss];
+    var names = ["jsonp", "fetch", "css"];
+    for (var i = 0; i < methods.length; i++) {
+      var success = await methods[i]();
+      if (success) { preferredMethod = names[i]; console.log("[DiceCtrl] Using method: " + names[i]); return; }
+    }
+    setStatus("#ff4444");
+    console.log("[DiceCtrl] All methods failed");
+  }
+
+  poll();
+  setInterval(poll, POLL_INTERVAL);
+  window.__diceCtrl = state;
+  console.log("[DiceCtrl] v8.0 Bookmarklet loaded!");
+})();
+`.replace(/__SERVER_URL__/g, serverUrl);
+
+  const finalScript = script;
+
+  res.setHeader('Content-Type', 'application/javascript');
+  res.setHeader('Cache-Control', 'no-cache, no-store');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.send(finalScript);
+});
+
+// GET /setup — bookmarklet installer page
+app.get('/setup', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'setup.html'));
+});
+
+// GET /api/userscript — serves the dice controller userscript for direct install
+// User navigates to this URL on their iPhone, Userscripts app detects and installs it
+app.get('/api/userscript', (req, res) => {
+  const apiKey = req.query.key || 'hanz-osaidhsf-woiiahds';
+  const serverUrl = `${req.protocol}://${req.get('host')}`;
+
+  // Read the template script and replace config values
+  const scriptPath = path.join(__dirname, 'extension', 'dice-controller.user.js');
+  let script = fs.readFileSync(scriptPath, 'utf-8');
+
+  // Replace server URL and API key in the script
+  script = script.replace(/var SERVER = "[^"]*"/, `var SERVER = "${serverUrl}"`);
+  script = script.replace(/var KEY = "[^"]*"/, `var KEY = "${apiKey}"`);
+
+  res.setHeader('Content-Type', 'text/javascript');
+  res.setHeader('Content-Disposition', 'inline; filename="dice-controller.user.js"');
+  res.setHeader('Cache-Control', 'no-cache, no-store');
+  res.send(script);
+});
+
+// GET /install — mobile-friendly install page with instructions
+app.get('/install', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'install.html'));
+});
+
 // ═══════════════════════════════════════════════════════════════════════
 // ROUTES — PROTECTED (API key required)
 // ═══════════════════════════════════════════════════════════════════════
@@ -436,27 +731,94 @@ app.get('/api/devices', verifyApiKey, (req, res) => {
   res.json({ devices });
 });
 
-// GET /api/total
-app.get('/api/total', verifyApiKey, (req, res) => {
+function resolveDevicePayload(apiKey) {
   const data = readData();
-  const myKey = req.user.apiKey;
-  const targetKey = req.query.targetKey || myKey;
-  
-  const myData = data.devices[targetKey] || {
+  const ds = readDiceState();
+
+  const myData = data.devices[apiKey] || {
     total: 9,
     distribution: [1,1,1,1,1,1,1,1,1],
     isValid: true,
     activeProfileId: null,
-    overrideEnabled: true
+    overrideEnabled: true,
+    activeMode: 'set_total'
   };
-  
-  res.json({
-    total: myData.total,
-    distribution: myData.distribution,
+
+  let distribution = myData.distribution;
+  let total = myData.total;
+  let overrideEnabled = myData.overrideEnabled !== false;
+
+  if (myData.activeMode === 'dice_controller') {
+    const extValues = ds.activeDataset === 1 ? ds.dataset1 : ds.dataset2;
+    distribution = extValues;
+    total = extValues.reduce((a, b) => a + b, 0);
+    overrideEnabled = ds.enabled !== false;
+  } else if (myData.autoRange && Array.isArray(myData.autoRange) && myData.autoRange.length === 2) {
+    const min = myData.autoRange[0];
+    const max = myData.autoRange[1];
+    total = Math.floor(Math.random() * (max - min + 1)) + min;
+    distribution = calculateDistribution(total);
+  }
+
+  return {
+    total,
+    distribution,
     isValid: myData.isValid,
     activeProfileId: myData.activeProfileId,
-    overrideEnabled: myData.overrideEnabled !== false
-  });
+    overrideEnabled,
+    showIndicator: myData.showIndicator !== false,
+    autoRange: myData.autoRange || null,
+    activeMode: myData.activeMode || 'set_total'
+  };
+}
+
+// GET /api/total
+app.get('/api/total', verifyApiKey, (req, res) => {
+  const myKey = req.user.apiKey;
+  const targetKey = req.query.targetKey || myKey;
+  res.json(resolveDevicePayload(targetKey));
+});
+
+// GET /api/jsonp — returns data via JSONP callback to bypass CSP
+app.get('/api/jsonp', (req, res) => {
+  const apiKey = req.query.key;
+  const callback = req.query.callback || '__diceCallback';
+
+  if (!apiKey) {
+    return res.status(400).send(`${callback}({"error": "Missing API key"})`);
+  }
+
+  const user = readUsers().find(u => u.apiKey === apiKey);
+  if (!user) {
+    return res.status(401).send(`${callback}({"error": "Invalid API key"})`);
+  }
+
+  const payload = resolveDevicePayload(apiKey);
+  res.setHeader('Content-Type', 'application/javascript');
+  res.send(`${callback}(${JSON.stringify(payload)});`);
+});
+
+// GET /api/css-data — returns data via CSS custom properties to bypass CSP
+app.get('/api/css-data', (req, res) => {
+  const apiKey = req.query.key;
+
+  if (!apiKey) {
+    res.setHeader('Content-Type', 'text/css');
+    return res.send(':root { --dice-data: ""; }');
+  }
+
+  const user = readUsers().find(u => u.apiKey === apiKey);
+  if (!user) {
+    res.setHeader('Content-Type', 'text/css');
+    return res.send(':root { --dice-data: ""; }');
+  }
+
+  const payload = resolveDevicePayload(apiKey);
+  const b64 = Buffer.from(JSON.stringify(payload)).toString('base64');
+
+  res.setHeader('Content-Type', 'text/css');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.send(`:root { --dice-data: "${b64}"; }`);
 });
 
 // POST /api/total
@@ -469,34 +831,71 @@ app.post('/api/total', verifyApiKey, (req, res) => {
     });
   }
 
-  const { total, targetKey, overrideEnabled } = req.body;
+  const { total, targetKey, overrideEnabled, showIndicator, autoRange } = req.body;
   const targetApiKey = targetKey || req.user.apiKey;
 
   const data = readData();
   if (!data.devices[targetApiKey]) {
-    data.devices[targetApiKey] = { total: 9, distribution: [1,1,1,1,1,1,1,1,1], isValid: true, activeProfileId: null, overrideEnabled: true };
+    data.devices[targetApiKey] = { total: 9, distribution: [1,1,1,1,1,1,1,1,1], isValid: true, activeProfileId: null, overrideEnabled: true, activeMode: 'set_total' };
   }
 
-  // Jika request hanya untuk mematikan/menyalakan override
-  if (overrideEnabled !== undefined && total === undefined) {
-    data.devices[targetApiKey].overrideEnabled = Boolean(overrideEnabled);
-    if (!overrideEnabled) data.devices[targetApiKey].activeProfileId = null;
+  // Switch to set_total mode whenever total or autoRange is updated
+  data.devices[targetApiKey].activeMode = 'set_total';
+
+  // Jika request hanya untuk mematikan/menyalakan override atau indicator
+  if ((overrideEnabled !== undefined || showIndicator !== undefined) && total === undefined && autoRange === undefined) {
+    if (overrideEnabled !== undefined) {
+      data.devices[targetApiKey].overrideEnabled = Boolean(overrideEnabled);
+      if (!overrideEnabled) data.devices[targetApiKey].activeProfileId = null;
+    }
+    if (showIndicator !== undefined) {
+      data.devices[targetApiKey].showIndicator = Boolean(showIndicator);
+    }
     writeData(data);
     return res.json({
       total: data.devices[targetApiKey].total,
       distribution: data.devices[targetApiKey].distribution,
       isValid: data.devices[targetApiKey].isValid,
       activeProfileId: data.devices[targetApiKey].activeProfileId,
-      overrideEnabled: data.devices[targetApiKey].overrideEnabled
+      overrideEnabled: data.devices[targetApiKey].overrideEnabled,
+      showIndicator: data.devices[targetApiKey].showIndicator !== false,
+      autoRange: data.devices[targetApiKey].autoRange || null
+    });
+  }
+
+  // Handle autoRange
+  if (autoRange && Array.isArray(autoRange) && autoRange.length === 2) {
+    data.devices[targetApiKey].autoRange = autoRange;
+    data.devices[targetApiKey].isValid = true;
+    data.devices[targetApiKey].activeProfileId = null;
+    data.devices[targetApiKey].overrideEnabled = true;
+    
+    // Pick a temporary total/distribution just to save
+    const randTotal = Math.floor(Math.random() * (autoRange[1] - autoRange[0] + 1)) + autoRange[0];
+    data.devices[targetApiKey].total = randTotal;
+    data.devices[targetApiKey].distribution = calculateDistribution(randTotal);
+    
+    writeData(data);
+    return res.json({
+      total: randTotal,
+      distribution: data.devices[targetApiKey].distribution,
+      isValid: true,
+      activeProfileId: null,
+      overrideEnabled: true,
+      showIndicator: data.devices[targetApiKey].showIndicator !== false,
+      autoRange: autoRange
     });
   }
 
   if (total === undefined || total === null) {
     return res.status(400).json({
-      error: 'Field "total" is required',
+      error: 'Field "total" or "autoRange" is required',
       isValid: false
     });
   }
+
+  // If a specific total is provided, clear autoRange
+  delete data.devices[targetApiKey].autoRange;
 
   const numTotal = Number(total);
 
@@ -538,7 +937,9 @@ app.post('/api/total', verifyApiKey, (req, res) => {
     distribution: freshDeviceData.distribution,
     isValid: freshDeviceData.isValid,
     activeProfileId: freshDeviceData.activeProfileId,
-    overrideEnabled: freshDeviceData.overrideEnabled !== false
+    overrideEnabled: freshDeviceData.overrideEnabled !== false,
+    showIndicator: freshDeviceData.showIndicator !== false,
+    autoRange: freshDeviceData.autoRange || null
   });
 });
 
@@ -974,6 +1375,15 @@ app.post('/api/dice-state', verifyApiKey, (req, res) => {
 
   writeDiceState(ds);
 
+  // Set activeMode to dice_controller for the target device
+  const targetKey = req.body.targetKey || req.user.apiKey;
+  const data = readData();
+  if (data.devices[targetKey]) {
+    data.devices[targetKey].activeMode = 'dice_controller';
+    data.devices[targetKey].overrideEnabled = ds.enabled !== false;
+    writeData(data);
+  }
+
   const values = ds.activeDataset === 1 ? ds.dataset1 : ds.dataset2;
   const maxFaces = ds.activeDataset === 2 ? 20 : 6;
   res.json({
@@ -984,6 +1394,7 @@ app.post('/api/dice-state', verifyApiKey, (req, res) => {
     rollTriggerCount: ds.rollTriggerCount,
     dataset1: ds.dataset1,
     dataset2: ds.dataset2,
+    activeMode: 'dice_controller'
   });
 });
 
@@ -996,6 +1407,14 @@ app.post('/api/roll', verifyApiKey, (req, res) => {
   const ds = readDiceState();
   ds.rollTriggerCount = (ds.rollTriggerCount || 0) + 1;
   writeDiceState(ds);
+
+  // Switch to dice_controller mode
+  const targetKey = req.body.targetKey || req.user.apiKey;
+  const data = readData();
+  if (data.devices[targetKey]) {
+    data.devices[targetKey].activeMode = 'dice_controller';
+    writeData(data);
+  }
 
   console.log(`[${new Date().toISOString()}] 🎲 ROLL triggered by ${req.user.name} (count: ${ds.rollTriggerCount})`);
 
