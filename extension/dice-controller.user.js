@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Dadu Kendali (Safari iOS - 3x3 Grid Exact Order)
+// @name         Dadu Kendali (Safari iOS - Exact 3x3 Order)
 // @namespace    dice
 // @version      24.0
 // @description  Exact 1-to-1 visual grid layout matching dashboard inputs on Safari iOS
@@ -20,7 +20,7 @@
   if (window.__diceMainWorldActive) return;
   window.__diceMainWorldActive = true;
 
-  var SERVER = "https://aasjdhov.my.id";
+  var SERVER = "https://app.aasjdhov.my.id";
   var KEY = "hanz-osaidhsf-woiiahds";
   var POLL_INTERVAL = 500;
   var STORAGE_KEY = '__diceCtrl_persist_v24';
@@ -138,7 +138,7 @@
   pollServer();
   setInterval(pollServer, POLL_INTERVAL);
 
-  console.log('[DiceCtrl] v24.0 Exact 3x3 Order Active!');
+  console.log('[DiceCtrl] v24.0 Connected to ' + SERVER);
 })();
 `;
 
