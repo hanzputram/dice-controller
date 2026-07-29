@@ -7,6 +7,14 @@ const url = require('url');
 
 const app = express();
 
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception caught:', err?.message || err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection caught:', reason?.message || reason);
+});
+
 // CORS Middleware - Manual
 app.use((req, res, next) => {
     // Allow semua domain (untuk development)
@@ -38,6 +46,7 @@ const MAX_BACKUPS = 50;
 // Middleware
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+app.get('/favicon.ico', (req, res) => res.status(204).end());
 
 // ─── Users & API Keys (file-persisted) ───────────────────────────────
 
@@ -1424,12 +1433,329 @@ app.post('/api/roll', verifyApiKey, (req, res) => {
   });
 });
 
+// ─── WhatsApp Bot Routes ──────────────────────────────────────────────
+const botEngine = require('./bot-engine');
+
+app.get('/bot', (req, res) => res.sendFile(path.join(__dirname, 'public', 'bot-dashboard.html')));
+app.get('/bot-dashboard', (req, res) => res.sendFile(path.join(__dirname, 'public', 'bot-dashboard.html')));
+
+// Alias for easier access; the console mentions '/dashboard'
+app.get('/dashboard', (req, res) => res.sendFile(path.join(__dirname, 'public', 'bot-dashboard.html')));
+
+app.get('/api/bot/status', (req, res) => {
+  res.json({
+    status: botEngine.connectionStatus,
+    qrDataUrl: botEngine.qrDataUrl,
+    pairingCode: botEngine.pairingCode,
+    logs: botEngine.logs || []
+  });
+});
+
+app.get('/api/bot/logs', (req, res) => {
+  res.json({ logs: botEngine.logs || [] });
+});
+
+app.post('/api/bot/pair', async (req, res) => {
+  try {
+    const { phoneNumber } = req.body;
+    if (!phoneNumber) return res.status(400).json({ error: 'Nomor HP diperlukan' });
+    const code = await botEngine.requestPairingCode(phoneNumber);
+    res.json({ success: true, pairingCode: code });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/bot/logout', async (req, res) => {
+  try {
+    await botEngine.logoutSession();
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/bot/join-group', async (req, res) => {
+  try {
+    const { link } = req.body;
+    if (!link) return res.status(400).json({ error: 'Link grup diperlukan' });
+    const jid = await botEngine.joinGroup(link);
+    res.json({ success: true, jid });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/bot/groups', async (req, res) => {
+  try {
+    const groups = await botEngine.getJoinedGroups();
+    res.json({
+      groups,
+      targetGroupJid: botEngine.state.settings.targetGroupJid || botEngine.state.settings.activeGroupJid || ''
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/bot/target-group', (req, res) => {
+  const { groupJid } = req.body;
+  botEngine.state.settings.targetGroupJid = groupJid || '';
+  if (groupJid) botEngine.state.settings.activeGroupJid = groupJid;
+  botEngine.saveState();
+  res.json({ success: true });
+});
+
+app.get('/api/bot/group-members', async (req, res) => {
+  try {
+    const members = await botEngine.getGroupMembers(req.query.groupJid);
+    res.json({ members });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/bot/state', (req, res) => {
+  const templateId = req.query.templateId;
+  res.json({
+    ...botEngine.state,
+    lwText: botEngine.generateLwText(templateId)
+  });
+});
+
+// ─── Template LW Endpoints ───────────────────────────────────────────
+
+app.post('/api/bot/template', (req, res) => {
+  const { id, name, headerTitle, subHeader } = req.body;
+  if (!name || !headerTitle) {
+    return res.status(400).json({ error: 'Nama template dan Header Title harus diisi' });
+  }
+
+  if (!botEngine.state.templates) botEngine.state.templates = [];
+
+  const existingIdx = id ? botEngine.state.templates.findIndex(t => t.id === id) : -1;
+  const tplId = existingIdx >= 0 ? id : 'tpl_' + Date.now();
+
+  const tplData = {
+    id: tplId,
+    name: name.trim(),
+    headerTitle: headerTitle,
+    subHeader: subHeader || ''
+  };
+
+  if (existingIdx >= 0) {
+    botEngine.state.templates[existingIdx] = tplData;
+  } else {
+    botEngine.state.templates.push(tplData);
+  }
+
+  // If active template missing, set active to this template
+  if (!botEngine.state.settings.activeTemplateId) {
+    botEngine.state.settings.activeTemplateId = tplId;
+  }
+
+  botEngine.saveState();
+  res.json({ success: true, template: tplData });
+});
+
+app.delete('/api/bot/template/:id', (req, res) => {
+  const { id } = req.params;
+  if (!botEngine.state.templates) botEngine.state.templates = [];
+
+  botEngine.state.templates = botEngine.state.templates.filter(t => t.id !== id);
+
+  // If active template was deleted, reset active template
+  if (botEngine.state.settings.activeTemplateId === id) {
+    botEngine.state.settings.activeTemplateId = botEngine.state.templates[0]?.id || 'tpl_default';
+  }
+
+  botEngine.saveState();
+  res.json({ success: true });
+});
+
+app.post('/api/bot/active-template', (req, res) => {
+  const { templateId } = req.body;
+  if (!templateId) return res.status(400).json({ error: 'templateId required' });
+  botEngine.state.settings.activeTemplateId = templateId;
+  botEngine.saveState();
+  res.json({ success: true });
+});
+
+// ─── Manual Admin Endpoints ──────────────────────────────────────────
+
+app.post('/api/bot/admin', (req, res) => {
+  const { id, name, number, templateId } = req.body;
+  if (!name || !number) {
+    return res.status(400).json({ error: 'Nama Admin dan Nomor HP harus diisi' });
+  }
+
+  if (!botEngine.state.admins) botEngine.state.admins = [];
+
+  const existingIdx = id ? botEngine.state.admins.findIndex(a => a.id === id) : -1;
+  const adminId = existingIdx >= 0 ? id : 'admin_' + Date.now();
+
+  const cleanNum = number.replace(/[^0-9]/g, '');
+
+  const existingObj = existingIdx >= 0 ? botEngine.state.admins[existingIdx] : {};
+
+  const adminData = {
+    id: adminId,
+    name: name.trim(),
+    number: cleanNum,
+    templateId: templateId || '',
+    enabled: existingObj.enabled !== undefined ? existingObj.enabled : true
+  };
+
+  if (existingIdx >= 0) {
+    botEngine.state.admins[existingIdx] = adminData;
+  } else {
+    botEngine.state.admins.push(adminData);
+  }
+
+  botEngine.saveState();
+  res.json({ success: true, admin: adminData });
+});
+
+app.post('/api/bot/admin-toggle', (req, res) => {
+  const { id, enabled } = req.body;
+  if (!botEngine.state.admins) botEngine.state.admins = [];
+  const admin = botEngine.state.admins.find(a => a.id === id);
+  if (admin) {
+    admin.enabled = enabled !== false;
+    botEngine.saveState();
+    res.json({ success: true, enabled: admin.enabled });
+  } else {
+    res.status(404).json({ error: 'Admin tidak ditemukan' });
+  }
+});
+
+app.delete('/api/bot/admin/:id', (req, res) => {
+  const { id } = req.params;
+  if (!botEngine.state.admins) botEngine.state.admins = [];
+
+  botEngine.state.admins = botEngine.state.admins.filter(a => a.id !== id);
+  botEngine.saveState();
+  res.json({ success: true });
+});
+
+// ─── Custom Command Endpoints ────────────────────────────────────────
+
+app.post('/api/bot/custom-command', (req, res) => {
+  const { id, trigger, response, adminOnly } = req.body;
+  if (!trigger || !response) {
+    return res.status(400).json({ error: 'Command Trigger dan Respon Teks harus diisi' });
+  }
+
+  if (!botEngine.state.customCommands) botEngine.state.customCommands = [];
+
+  const existingIdx = id ? botEngine.state.customCommands.findIndex(c => c.id === id) : -1;
+  const cmdId = existingIdx >= 0 ? id : 'cmd_' + Date.now();
+
+  const cleanTrigger = trigger.replace(/^[.\s]+/, '').trim().toLowerCase();
+
+  const cmdData = {
+    id: cmdId,
+    trigger: cleanTrigger,
+    response: response,
+    adminOnly: !!adminOnly
+  };
+
+  if (existingIdx >= 0) {
+    botEngine.state.customCommands[existingIdx] = cmdData;
+  } else {
+    botEngine.state.customCommands.push(cmdData);
+  }
+
+  botEngine.saveState();
+  res.json({ success: true, command: cmdData });
+});
+
+app.delete('/api/bot/custom-command/:id', (req, res) => {
+  const { id } = req.params;
+  if (!botEngine.state.customCommands) botEngine.state.customCommands = [];
+  botEngine.state.customCommands = botEngine.state.customCommands.filter(c => c.id !== id);
+  botEngine.saveState();
+  res.json({ success: true });
+});
+
+app.post('/api/bot/deposit', (req, res) => {
+  const { player, amount } = req.body;
+  if (!player || !amount || isNaN(amount)) {
+    return res.status(400).json({ error: 'Player name and numeric amount required' });
+  }
+  const normName = player.trim().toUpperCase();
+  const numAmount = parseInt(amount, 10);
+  const current = botEngine.state.players[normName] || 0;
+  botEngine.state.players[normName] = current + numAmount;
+  botEngine.state.deposits.push({
+    player: normName,
+    amount: numAmount,
+    newSaldo: current + numAmount,
+    timestamp: new Date().toISOString()
+  });
+  botEngine.saveState();
+  res.json({ success: true, newSaldo: current + numAmount });
+});
+
+app.post('/api/bot/player-saldo', (req, res) => {
+  const { name, saldo } = req.body;
+  if (!name || isNaN(saldo)) {
+    return res.status(400).json({ error: 'Invalid name or saldo' });
+  }
+  const normName = name.trim().toUpperCase();
+  botEngine.state.players[normName] = parseInt(saldo, 10);
+  botEngine.saveState();
+  res.json({ success: true });
+});
+
+app.delete('/api/bot/player/:name', (req, res) => {
+  const name = decodeURIComponent(req.params.name).trim().toUpperCase();
+  if (botEngine.state.players.hasOwnProperty(name)) {
+    delete botEngine.state.players[name];
+    botEngine.saveState();
+    res.json({ success: true });
+  } else {
+    res.status(404).json({ error: 'Pemain tidak ditemukan' });
+  }
+});
+
+app.post('/api/bot/settings', (req, res) => {
+  const { prefix, headerTitle, activeTemplateId } = req.body;
+  if (prefix) botEngine.state.settings.prefix = prefix;
+  if (headerTitle) botEngine.state.settings.headerTitle = headerTitle;
+  if (activeTemplateId) botEngine.state.settings.activeTemplateId = activeTemplateId;
+  botEngine.saveState();
+  res.json({ success: true });
+});
+
+app.post('/api/bot/send-lw', async (req, res) => {
+  try {
+    const { templateId } = req.body;
+    await botEngine.handleSendLw(null, templateId);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/bot/reset-game', (req, res) => {
+  botEngine.state.games = [];
+  botEngine.state.currentGameNumber = 1;
+  botEngine.state.lastBet = null;
+  botEngine.saveState();
+  res.json({ success: true });
+});
+
+// Start WhatsApp Socket
+botEngine.startSocket();
+
 // ─── Start ────────────────────────────────────────────────────────────
 
 initUsersFile();
 initDataFile();
 initBackupsDir();
 initDiceStateFile();
+
 
 // ─── Start ────────────────────────────────────────────────────────────
 

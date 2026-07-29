@@ -1286,22 +1286,22 @@
       }
 
       // Auth events
-      connectBtn.addEventListener('click', onConnect);
-      disconnectBtn.addEventListener('click', onDisconnect);
-      apiKeyInput.addEventListener('keydown', e => { if (e.key === 'Enter') onConnect(); });
+      if (connectBtn) connectBtn.addEventListener('click', onConnect);
+      if (disconnectBtn) disconnectBtn.addEventListener('click', onDisconnect);
+      if (apiKeyInput) apiKeyInput.addEventListener('keydown', e => { if (e.key === 'Enter') onConnect(); });
 
       // API Key hint clicks
       document.querySelectorAll('.apikey-hint').forEach(hint => {
         hint.addEventListener('click', () => {
-          apiKeyInput.value = hint.dataset.key;
+          if (apiKeyInput) apiKeyInput.value = hint.dataset.key;
           onConnect();
         });
       });
 
       // Controls
-      totalSlider.addEventListener('input', onSliderChange);
-      totalInput.addEventListener('change', onInputChange);
-      presets.addEventListener('click', onPresetClick);
+      if (totalSlider) totalSlider.addEventListener('input', onSliderChange);
+      if (totalInput) totalInput.addEventListener('change', onInputChange);
+      if (presets) presets.addEventListener('click', onPresetClick);
 
       const randomKecilBtn = document.getElementById('randomKecilBtn');
       if (randomKecilBtn) {
@@ -1329,39 +1329,42 @@
         });
       }
 
-      document.getElementById('fairPlayBtn').addEventListener('click', async () => {
-        if (isSending) return;
-        if (currentUser && !currentUser.allowedToChange) {
-          showToast('Anda tidak memiliki izin', 'error');
-          return;
-        }
-        setLoading(true);
-        try {
-          const payload = { overrideEnabled: false };
-          if (currentTargetKey && currentTargetKey !== currentApiKey) {
-            payload.targetKey = currentTargetKey;
-          }
-          const res = await apiFetch('/api/total', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          });
-          const data = await res.json();
-          if (!res.ok) {
-            showToast(data.message || data.error, 'error');
+      const fairPlayBtn = document.getElementById('fairPlayBtn');
+      if (fairPlayBtn) {
+        fairPlayBtn.addEventListener('click', async () => {
+          if (isSending) return;
+          if (currentUser && !currentUser.allowedToChange) {
+            showToast('Anda tidak memiliki izin', 'error');
             return;
           }
-          currentOverrideEnabled = false;
-          currentActiveProfileId = null;
-          renderProfiles();
-          updateOverrideUI();
-          showToast('✓ Override dimatikan. Dadu sekarang murni acak.', 'success');
-        } catch (err) {
-          showToast('Gagal', 'error');
-        } finally {
-          setLoading(false);
-        }
-      });
+          setLoading(true);
+          try {
+            const payload = { overrideEnabled: false };
+            if (currentTargetKey && currentTargetKey !== currentApiKey) {
+              payload.targetKey = currentTargetKey;
+            }
+            const res = await apiFetch('/api/total', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (!res.ok) {
+              showToast(data.message || data.error, 'error');
+              return;
+            }
+            currentOverrideEnabled = false;
+            currentActiveProfileId = null;
+            renderProfiles();
+            updateOverrideUI();
+            showToast('✓ Override dimatikan. Dadu sekarang murni acak.', 'success');
+          } catch (err) {
+            showToast('Gagal', 'error');
+          } finally {
+            setLoading(false);
+          }
+        });
+      }
 
       if (showIndicatorToggle) {
         showIndicatorToggle.addEventListener('change', async (e) => {
@@ -1393,35 +1396,48 @@
       }
 
       // Profiles
-      activateProfileBtn.addEventListener('click', onActivateProfile);
-      createProfileBtn.addEventListener('click', onCreateProfile);
-      newProfileName.addEventListener('keydown', e => { if (e.key === 'Enter') onCreateProfile(); });
+      if (activateProfileBtn) activateProfileBtn.addEventListener('click', onActivateProfile);
+      if (createProfileBtn) createProfileBtn.addEventListener('click', onCreateProfile);
+      if (newProfileName) newProfileName.addEventListener('keydown', e => { if (e.key === 'Enter') onCreateProfile(); });
       
       // Target Device
-      targetDeviceSelect.addEventListener('change', (e) => {
-        currentTargetKey = e.target.value;
-        fetchCurrentState(currentTargetKey);
-      });
+      if (targetDeviceSelect) {
+        targetDeviceSelect.addEventListener('change', (e) => {
+          currentTargetKey = e.target.value;
+          fetchCurrentState(currentTargetKey);
+        });
+      }
 
       // Registration
-      document.getElementById('showRegisterBtn').addEventListener('click', (e) => {
-        e.preventDefault();
-        document.getElementById('loginForm').style.display = 'none';
-        document.getElementById('registerForm').style.display = 'block';
-      });
-      document.getElementById('showLoginBtn').addEventListener('click', (e) => {
-        e.preventDefault();
-        document.getElementById('registerForm').style.display = 'none';
-        document.getElementById('loginForm').style.display = 'block';
-      });
-      document.getElementById('doRegisterBtn').addEventListener('click', onRegisterPublic);
+      const showRegBtn = document.getElementById('showRegisterBtn');
+      if (showRegBtn) {
+        showRegBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const lf = document.getElementById('loginForm');
+          const rf = document.getElementById('registerForm');
+          if (lf) lf.style.display = 'none';
+          if (rf) rf.style.display = 'block';
+        });
+      }
+      const showLogBtn = document.getElementById('showLoginBtn');
+      if (showLogBtn) {
+        showLogBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const lf = document.getElementById('loginForm');
+          const rf = document.getElementById('registerForm');
+          if (rf) rf.style.display = 'none';
+          if (lf) lf.style.display = 'block';
+        });
+      }
+      const doRegBtn = document.getElementById('doRegisterBtn');
+      if (doRegBtn) doRegBtn.addEventListener('click', onRegisterPublic);
 
       // Webhooks
-      addWebhookBtn.addEventListener('click', onAddWebhook);
-      newWebhookUrl.addEventListener('keydown', e => { if (e.key === 'Enter') onAddWebhook(); });
+      if (addWebhookBtn) addWebhookBtn.addEventListener('click', onAddWebhook);
+      if (newWebhookUrl) newWebhookUrl.addEventListener('keydown', e => { if (e.key === 'Enter') onAddWebhook(); });
 
       // Admin Users
-      createUserBtn.addEventListener('click', onCreateUser);
+      if (createUserBtn) createUserBtn.addEventListener('click', onCreateUser);
 
       // Tabs
       document.querySelectorAll('.tab').forEach(tab => {

@@ -1,0 +1,1406 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WhatsApp Bot & Game Controller Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --bg-dark: #0f172a;
+      --panel-bg: rgba(30, 41, 59, 0.7);
+      --panel-border: rgba(255, 255, 255, 0.1);
+      --accent: #6366f1;
+      --accent-hover: #4f46e5;
+      --success: #10b981;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Outfit', sans-serif;
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.1) 0px, transparent 50%);
+      color: var(--text-main);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+
+    /* Top Navigation / Header */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 24px;
+      background: var(--panel-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--panel-border);
+      border-radius: 16px;
+      margin-bottom: 24px;
+    }
+
+    .logo-area {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-icon {
+      width: 42px;
+      height: 42px;
+      background: linear-gradient(135deg, var(--accent), #8b5cf6);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+    }
+
+    .logo-text h1 {
+      font-size: 1.25rem;
+      font-weight: 700;
+    }
+
+    .logo-text p {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border-radius: 9999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--panel-border);
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--danger);
+      box-shadow: 0 0 8px var(--danger);
+    }
+
+    .status-dot.connected {
+      background: var(--success);
+      box-shadow: 0 0 8px var(--success);
+    }
+
+    .status-dot.connecting {
+      background: var(--warning);
+      box-shadow: 0 0 8px var(--warning);
+    }
+
+    /* Grid Layout */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1fr 2fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 900px) {
+      .dashboard-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: var(--panel-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--panel-border);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--panel-border);
+    }
+
+    .card-title {
+      font-size: 1.05rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-title i {
+      color: var(--accent);
+    }
+
+    /* QR Code Display */
+    .qr-container {
+      text-align: center;
+      padding: 20px;
+    }
+
+    .qr-img {
+      width: 220px;
+      height: 220px;
+      border-radius: 12px;
+      border: 2px solid var(--accent);
+      padding: 8px;
+      background: #fff;
+    }
+
+    /* Stats Grid */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .stat-box {
+      background: rgba(15, 23, 42, 0.5);
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+    }
+
+    .stat-val {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-top: 4px;
+    }
+
+    .stat-lbl {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Buttons & Inputs */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: #fff;
+      background: var(--accent);
+    }
+
+    .btn:hover {
+      background: var(--accent-hover);
+      transform: translateY(-1px);
+    }
+
+    .btn-sm {
+      padding: 4px 10px;
+      font-size: 0.75rem;
+      border-radius: 6px;
+    }
+
+    .btn-success { background: var(--success); }
+    .btn-success:hover { background: #059669; }
+
+    .btn-danger { background: var(--danger); }
+    .btn-danger:hover { background: #dc2626; }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--panel-border);
+      color: var(--text-main);
+    }
+    .btn-outline:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .form-group {
+      margin-bottom: 14px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .form-control {
+      width: 100%;
+      padding: 10px 14px;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--panel-border);
+      border-radius: 8px;
+      color: var(--text-main);
+      font-family: inherit;
+      font-size: 0.9rem;
+    }
+
+    .form-control:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    textarea.form-control {
+      font-family: 'JetBrains Mono', monospace;
+      resize: vertical;
+      min-height: 120px;
+    }
+
+    /* Tables */
+    .table-responsive {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+    }
+
+    th, td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--panel-border);
+    }
+
+    th {
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+    }
+
+    .lw-preview {
+      font-family: 'JetBrains Mono', monospace;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      padding: 16px;
+      white-space: pre-wrap;
+      font-size: 0.85rem;
+      line-height: 1.6;
+      max-height: 380px;
+      overflow-y: auto;
+      color: #e2e8f0;
+    }
+
+    /* Badges */
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+    }
+    .badge-success { background: rgba(16, 185, 129, 0.2); color: var(--success); border: 1px solid var(--success); }
+    .badge-primary { background: rgba(99, 102, 241, 0.2); color: var(--accent); border: 1px solid var(--accent); }
+
+    /* Modals */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.2s ease;
+    }
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .modal-card {
+      background: #1e293b;
+      border: 1px solid var(--panel-border);
+      border-radius: 16px;
+      padding: 24px;
+      width: 90%;
+      max-width: 520px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--panel-border);
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <!-- Top Bar -->
+  <header>
+    <div class="logo-area">
+      <div class="logo-icon"><i class="fa-brands fa-whatsapp"></i></div>
+      <div class="logo-text">
+        <h1>WhatsApp Game Controller</h1>
+        <p>Bot Taruhan K/B & Saldo Player Manager</p>
+      </div>
+    </div>
+    <div class="status-badge">
+      <span class="status-dot" id="statusDot"></span>
+      <span id="statusText">Checking...</span>
+    </div>
+  </header>
+
+  <!-- Stat Cards -->
+  <div class="stats-row">
+    <div class="stat-box">
+      <div class="stat-lbl">Game Aktif</div>
+      <div class="stat-val" id="statGameCount">0</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-lbl">Total Saldo +</div>
+      <div class="stat-val" style="color: var(--success);" id="statTotalSaldo">0</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-lbl">Total Saldo -</div>
+      <div class="stat-val" style="color: var(--danger);" id="statTotalMinus">0</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-lbl">Jumlah Pemain</div>
+      <div class="stat-val" id="statPlayerCount">0</div>
+    </div>
+  </div>
+
+  <div class="dashboard-grid">
+    <!-- Left Column: Controls, Deposit & Admin List -->
+    <div>
+      <!-- Connection Card -->
+      <div class="card" id="connectionCard">
+        <div class="card-header">
+          <div class="card-title"><i class="fa-solid fa-qrcode"></i> Koneksi WhatsApp</div>
+          <button class="btn btn-outline btn-sm" style="color: var(--danger);" onclick="resetWaSession()"><i class="fa-solid fa-power-off"></i> Reset Session</button>
+        </div>
+        <div class="qr-container" id="qrWrapper">
+          <p style="color: var(--text-muted); margin-bottom: 12px;">Scan QR Code dengan WhatsApp Admin:</p>
+          <img id="qrImg" class="qr-img" src="" alt="QR Code" style="display: none;">
+          <p id="qrPlaceholder" style="font-size: 0.9rem; color: var(--text-muted);">Memuat QR Code...</p>
+        </div>
+      </div>
+
+      <!-- Activity Log Card -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i class="fa-solid fa-terminal"></i> Activity Log Bot</div>
+          <span class="badge badge-primary" id="logCountBadge">0 logs</span>
+        </div>
+        <div id="logContainer" style="font-family: 'JetBrains Mono', monospace; background: rgba(15, 23, 42, 0.9); border: 1px solid var(--panel-border); border-radius: 10px; padding: 12px; height: 180px; overflow-y: auto; font-size: 0.78rem; line-height: 1.5; color: #cbd5e1;">
+          <div style="color: var(--text-muted);">Memuat log sistem...</div>
+        </div>
+      </div>
+
+      <!-- Quick Deposit Card -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i class="fa-solid fa-wallet"></i> Quick Deposit (.dp)</div>
+        </div>
+        <form id="depositForm">
+          <div class="form-group">
+            <label class="form-label">Nama Pemain</label>
+            <input type="text" id="dpPlayer" class="form-control" placeholder="Contoh: ACIK" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Jumlah Deposit</label>
+            <input type="number" id="dpAmount" class="form-control" placeholder="Contoh: 38" required>
+          </div>
+          <button type="submit" class="btn btn-success" style="width: 100%;">
+            <i class="fa-solid fa-plus"></i> Tambah Deposit
+          </button>
+        </form>
+      </div>
+
+      <!-- Settings Card -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i class="fa-solid fa-gear"></i> General Settings</div>
+        </div>
+        <form id="settingsForm">
+          <div class="form-group">
+            <label class="form-label">Prefix Command</label>
+            <input type="text" id="settingPrefix" class="form-control" value="." required>
+          </div>
+          <button type="submit" class="btn btn-outline" style="width: 100%;">
+            <i class="fa-solid fa-floppy-disk"></i> Simpan Prefix
+          </button>
+        </form>
+      </div>
+
+      <!-- Target & Join Group Card -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i class="fa-solid fa-users-rectangle"></i> Target Grup WhatsApp</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Grup Aktif / Target Rekap Bot</label>
+          <select id="targetGroupSelect" class="form-control" onchange="onTargetGroupChange()">
+            <option value="">Memuat daftar grup...</option>
+          </select>
+        </div>
+        <form id="joinGroupForm" style="margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--panel-border);">
+          <div class="form-group">
+            <label class="form-label">Masuk Grup Baru via Link Undangan</label>
+            <input type="text" id="joinGroupLink" class="form-control" placeholder="https://chat.whatsapp.com/..." required>
+          </div>
+          <button type="submit" class="btn btn-outline" style="width: 100%;">
+            <i class="fa-solid fa-right-to-bracket"></i> Bot Masuk ke Grup
+          </button>
+        </form>
+      </div>
+
+      <!-- Manual Admin List Card -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i class="fa-solid fa-user-shield"></i> Daftar Admin Manual</div>
+          <button class="btn btn-outline btn-sm" onclick="openAdminModal()">
+            <i class="fa-solid fa-plus"></i> Admin
+          </button>
+        </div>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Admin</th>
+                <th>Nomor WA / LID</th>
+                <th>Template</th>
+                <th>Status (ON/OFF)</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="adminTableBody">
+              <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Belum ada admin manual.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Custom Commands Card -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i class="fa-solid fa-terminal"></i> Custom Commands Bot</div>
+          <button class="btn btn-outline btn-sm" onclick="openCmdModal()">
+            <i class="fa-solid fa-plus"></i> Perintah Baru
+          </button>
+        </div>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Perintah</th>
+                <th>Akses</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="customCmdTableBody">
+              <tr><td colspan="3" style="text-align: center; color: var(--text-muted);">Belum ada perintah kustom.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Templates LW, Live Rekap & Player Table -->
+    <div>
+      <!-- Live Rekap LW Card -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i class="fa-solid fa-file-lines"></i> Live Rekap (.lw)</div>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <select id="previewTemplateSelect" class="form-control" style="width: auto; padding: 6px 10px; font-size: 0.85rem;" onchange="fetchState()">
+            </select>
+            <button class="btn btn-outline btn-sm" onclick="copyLwText()"><i class="fa-solid fa-copy"></i> Copy</button>
+            <button class="btn btn-success btn-sm" onclick="sendLwToGroup()"><i class="fa-solid fa-paper-plane"></i> Send WA</button>
+          </div>
+        </div>
+        <div class="lw-preview" id="lwPreview">Loading rekap...</div>
+      </div>
+
+      <!-- LW Templates Card -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i class="fa-solid fa-copy"></i> Master Template LW</div>
+          <button class="btn btn-outline btn-sm" onclick="openTemplateModal()">
+            <i class="fa-solid fa-plus"></i> Template Baru
+          </button>
+        </div>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Nama Template</th>
+                <th>Status</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="templateTableBody">
+              <tr><td colspan="3" style="text-align: center; color: var(--text-muted);">Belum ada template.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Player Leaderboard & Balances -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i class="fa-solid fa-users"></i> Saldo Pemain</div>
+          <button class="btn btn-danger btn-outline btn-sm" onclick="resetGameSession()"><i class="fa-solid fa-rotate-left"></i> Reset Game</button>
+        </div>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Nama Pemain</th>
+                <th>Saldo</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="playerTableBody">
+              <tr><td colspan="3" style="text-align: center; color: var(--text-muted);">Belum ada data pemain.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Template LW -->
+<div class="modal-overlay" id="templateModal">
+  <div class="modal-card">
+    <div class="modal-header">
+      <div class="card-title" id="tplModalTitle"><i class="fa-solid fa-pen-to-square"></i> Form Template LW</div>
+      <button class="btn btn-outline btn-sm" onclick="closeTemplateModal()"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <form id="templateForm">
+      <input type="hidden" id="tplId">
+      <div class="form-group">
+        <label class="form-label">Nama Template</label>
+        <input type="text" id="tplName" class="form-control" placeholder="Contoh: Template Shift Pagi / Admin Topan" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Header Title (.lw)</label>
+        <textarea id="tplHeader" class="form-control" rows="5" placeholder="Contoh: M1 ONLY TOPAN..." required></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Sub Header / Footer (.lw)</label>
+        <input type="text" id="tplSubHeader" class="form-control" placeholder="Contoh: LW @ltovan">
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px;">
+        <button type="button" class="btn btn-outline" onclick="closeTemplateModal()">Batal</button>
+        <button type="submit" class="btn btn-success"><i class="fa-solid fa-floppy-disk"></i> Simpan Template</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal Admin Manual -->
+<div class="modal-overlay" id="adminModal">
+  <div class="modal-card">
+    <div class="modal-header">
+      <div class="card-title" id="admModalTitle"><i class="fa-solid fa-user-plus"></i> Form Admin Manual</div>
+      <button class="btn btn-outline btn-sm" onclick="closeAdminModal()"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <form id="adminForm">
+      <input type="hidden" id="admId">
+      <div class="form-group">
+        <label class="form-label">Nama Admin</label>
+        <input type="text" id="admName" class="form-control" placeholder="Contoh: Admin Topan" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nomor WhatsApp (dengan kode negara)</label>
+        <input type="text" id="admNumber" class="form-control" placeholder="Contoh: 628123456789" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Template LW Khusus Admin ini</label>
+        <select id="admTemplateSelect" class="form-control">
+          <option value="">-- Active Dashboard Template --</option>
+        </select>
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px;">
+        <button type="button" class="btn btn-outline" onclick="closeAdminModal()">Batal</button>
+        <button type="submit" class="btn btn-success"><i class="fa-solid fa-floppy-disk"></i> Simpan Admin</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal Custom Command -->
+<div class="modal-overlay" id="cmdModal">
+  <div class="modal-card">
+    <div class="modal-header">
+      <div class="card-title" id="cmdModalTitle"><i class="fa-solid fa-terminal"></i> Form Custom Command</div>
+      <button class="btn btn-outline btn-sm" onclick="closeCmdModal()"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <form id="cmdForm">
+      <input type="hidden" id="cmdId">
+      <div class="form-group">
+        <label class="form-label">Kata Kunci Perintah (tanpa titik)</label>
+        <input type="text" id="cmdTrigger" class="form-control" placeholder="Contoh: rules, rekening, info, link" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Pesan Balasan Bot</label>
+        <textarea id="cmdResponse" class="form-control" rows="5" placeholder="Pesan yang akan dikirim bot saat perintah dipanggil..." required></textarea>
+      </div>
+      <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
+        <input type="checkbox" id="cmdAdminOnly" style="width: 18px; height: 18px;">
+        <label for="cmdAdminOnly" class="form-label" style="margin-bottom: 0; cursor: pointer;">Hanya Admin yang bisa menggunakan perintah ini</label>
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px;">
+        <button type="button" class="btn btn-outline" onclick="closeCmdModal()">Batal</button>
+        <button type="submit" class="btn btn-success"><i class="fa-solid fa-floppy-disk"></i> Simpan Perintah</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  let stateData = { settings: {}, templates: [], admins: [] };
+
+  async function fetchStatus() {
+    try {
+      const res = await fetch('/api/bot/status');
+      const data = await res.json();
+      
+      const dot = document.getElementById('statusDot');
+      const text = document.getElementById('statusText');
+      const qrImg = document.getElementById('qrImg');
+      const qrPlaceholder = document.getElementById('qrPlaceholder');
+
+      dot.className = 'status-dot ' + (data.status === 'waiting_qr' ? 'connecting' : data.status);
+      text.innerText = data.status === 'connected' ? 'WhatsApp Terhubung' : 
+                       data.status === 'waiting_qr' ? 'Scan QR Code!' :
+                       data.status === 'connecting' ? 'Memuat QR Code...' : 'Terputus';
+
+      if (data.status === 'waiting_qr' && data.qrDataUrl) {
+        qrImg.src = data.qrDataUrl;
+        qrImg.style.display = 'inline-block';
+        qrPlaceholder.style.display = 'none';
+      } else if (data.status === 'connected') {
+        qrImg.style.display = 'none';
+        qrPlaceholder.style.display = 'block';
+        qrPlaceholder.innerText = '✅ WhatsApp sudah terhubung!';
+      } else {
+        qrImg.style.display = 'none';
+        qrPlaceholder.style.display = 'block';
+        qrPlaceholder.innerText = data.status === 'connecting' ? 'Memuat QR Code...' : 'Bot terputus / menghubungkan ulang. Harap tunggu...';
+      }
+
+      // Render logs
+      if (data.logs && Array.isArray(data.logs)) {
+        const logContainer = document.getElementById('logContainer');
+        const logCountBadge = document.getElementById('logCountBadge');
+        if (logContainer) {
+          logCountBadge.innerText = `${data.logs.length} logs`;
+          if (data.logs.length === 0) {
+            logContainer.innerHTML = `<div style="color: var(--text-muted);">Belum ada log aktivitas.</div>`;
+          } else {
+            logContainer.innerHTML = data.logs.map(l => {
+              let color = '#94a3b8';
+              if (l.type === 'success') color = '#10b981';
+              else if (l.type === 'warn') color = '#f59e0b';
+              else if (l.type === 'error') color = '#ef4444';
+              else if (l.type === 'info') color = '#38bdf8';
+
+              return `<div style="margin-bottom: 4px; word-break: break-all;">
+                <span style="color: #64748b;">[${l.time}]</span> 
+                <span style="color: ${color}; font-weight: 500;">${l.message}</span>
+              </div>`;
+            }).join('');
+          }
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function fetchState() {
+    try {
+      const selTpl = document.getElementById('previewTemplateSelect').value;
+      const url = selTpl ? `/api/bot/state?templateId=${encodeURIComponent(selTpl)}` : '/api/bot/state';
+      const res = await fetch(url);
+      const data = await res.json();
+      stateData = data;
+
+      document.getElementById('statGameCount').innerText = data.games.length;
+      document.getElementById('statPlayerCount').innerText = Object.keys(data.players).length;
+
+      let posSum = 0;
+      let negSum = 0;
+      for (const val of Object.values(data.players)) {
+        if (val > 0) posSum += val;
+        else if (val < 0) negSum += val;
+      }
+
+      document.getElementById('statTotalSaldo').innerText = posSum;
+      document.getElementById('statTotalMinus').innerText = negSum;
+
+      // Update LW Preview
+      document.getElementById('lwPreview').innerText = data.lwText || '';
+
+      // Update Settings Form
+      if (data.settings) {
+        document.getElementById('settingPrefix').value = data.settings.prefix || '.';
+      }
+
+      // Populate preview template select if needed
+      populateTemplateSelectors(data.templates, data.settings.activeTemplateId);
+
+      // Render Templates, Admins & Custom Commands
+      renderTemplates(data.templates, data.settings.activeTemplateId);
+      renderAdmins(data.admins, data.templates);
+      renderCustomCommands(data.customCommands);
+
+      // Update Player Table
+      const tbody = document.getElementById('playerTableBody');
+      tbody.innerHTML = '';
+
+      const entries = Object.entries(data.players);
+      if (entries.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--text-muted);">Belum ada data pemain.</td></tr>`;
+      } else {
+        entries.sort((a, b) => b[1] - a[1]);
+        entries.forEach(([name, saldo]) => {
+          const tr = document.createElement('tr');
+          const colorStyle = saldo > 0 ? 'color: var(--success); font-weight: 600;' : saldo < 0 ? 'color: var(--danger); font-weight: 600;' : '';
+          tr.innerHTML = `
+            <td><strong>${name}</strong></td>
+            <td style="${colorStyle}">${saldo}</td>
+            <td>
+              <div style="display: flex; gap: 4px;">
+                <button class="btn btn-outline btn-sm" onclick="editPlayerSaldo('${name}', ${saldo})"><i class="fa-solid fa-pen"></i></button>
+                <button class="btn btn-danger btn-sm" onclick="deletePlayer('${name}')"><i class="fa-solid fa-trash"></i></button>
+              </div>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  function populateTemplateSelectors(templates = [], activeId = '') {
+    const selPreview = document.getElementById('previewTemplateSelect');
+    const currentSel = selPreview.value;
+    selPreview.innerHTML = '';
+
+    const selAdm = document.getElementById('admTemplateSelect');
+    selAdm.innerHTML = '<option value="">-- Active Dashboard Template --</option>';
+
+    templates.forEach(t => {
+      const isAct = t.id === activeId ? ' (Aktif)' : '';
+      
+      const opt = document.createElement('option');
+      opt.value = t.id;
+      opt.innerText = t.name + isAct;
+      selPreview.appendChild(opt);
+
+      const opt2 = document.createElement('option');
+      opt2.value = t.id;
+      opt2.innerText = t.name;
+      selAdm.appendChild(opt2);
+    });
+
+    if (currentSel && templates.some(t => t.id === currentSel)) {
+      selPreview.value = currentSel;
+    } else if (activeId) {
+      selPreview.value = activeId;
+    }
+  }
+
+  function renderTemplates(templates = [], activeId = '') {
+    const tbody = document.getElementById('templateTableBody');
+    tbody.innerHTML = '';
+
+    if (!templates || templates.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--text-muted);">Belum ada template.</td></tr>`;
+      return;
+    }
+
+    templates.forEach(t => {
+      const tr = document.createElement('tr');
+      const isActive = t.id === activeId;
+      const statusBadge = isActive 
+        ? `<span class="badge badge-success">Aktif</span>` 
+        : `<button class="btn btn-outline btn-sm" onclick="setActiveTemplate('${t.id}')">Gunakan</button>`;
+
+      tr.innerHTML = `
+        <td><strong>${t.name}</strong></td>
+        <td>${statusBadge}</td>
+        <td>
+          <div style="display: flex; gap: 4px;">
+            <button class="btn btn-outline btn-sm" onclick="editTemplate('${t.id}')"><i class="fa-solid fa-pen"></i></button>
+            <button class="btn btn-danger btn-sm" onclick="deleteTemplate('${t.id}')"><i class="fa-solid fa-trash"></i></button>
+          </div>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function renderAdmins(admins = [], templates = []) {
+    const tbody = document.getElementById('adminTableBody');
+    tbody.innerHTML = '';
+
+    if (!admins || admins.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Belum ada admin manual.</td></tr>`;
+      return;
+    }
+
+    admins.forEach(a => {
+      const tr = document.createElement('tr');
+      const tpl = templates.find(t => t.id === a.templateId);
+      const tplName = tpl ? tpl.name : '<span style="color: var(--text-muted);">[Default]</span>';
+      const isEnabled = a.enabled !== false;
+
+      const toggleBadge = isEnabled
+        ? `<button class="btn btn-sm btn-success" style="padding: 2px 8px; font-size: 0.75rem;" onclick="toggleAdminStatus('${a.id}', false)"><i class="fa-solid fa-toggle-on"></i> ON</button>`
+        : `<button class="btn btn-sm btn-danger" style="padding: 2px 8px; font-size: 0.75rem;" onclick="toggleAdminStatus('${a.id}', true)"><i class="fa-solid fa-toggle-off"></i> OFF</button>`;
+
+      tr.innerHTML = `
+        <td><strong>${a.name}</strong></td>
+        <td><code>${a.number}</code></td>
+        <td>${tplName}</td>
+        <td>${toggleBadge}</td>
+        <td>
+          <div style="display: flex; gap: 4px;">
+            <button class="btn btn-outline btn-sm" onclick="editAdmin('${a.id}')"><i class="fa-solid fa-pen"></i></button>
+            <button class="btn btn-danger btn-sm" onclick="deleteAdmin('${a.id}')"><i class="fa-solid fa-trash"></i></button>
+          </div>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  async function toggleAdminStatus(id, enabled) {
+    try {
+      const res = await fetch('/api/bot/admin-toggle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, enabled })
+      });
+      const data = await res.json();
+      if (data.success) fetchState();
+    } catch (err) {
+      alert('Error toggling admin status: ' + err.message);
+    }
+  }
+
+  function renderCustomCommands(customCommands = []) {
+    const tbody = document.getElementById('customCmdTableBody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (!customCommands || customCommands.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--text-muted);">Belum ada perintah kustom.</td></tr>`;
+      return;
+    }
+
+    const prefix = (stateData.settings && stateData.settings.prefix) || '.';
+
+    customCommands.forEach(c => {
+      const tr = document.createElement('tr');
+      const accessBadge = c.adminOnly 
+        ? `<span class="badge badge-primary">Admin Only</span>` 
+        : `<span class="badge badge-success">Semua Member</span>`;
+
+      tr.innerHTML = `
+        <td><code>${prefix}${c.trigger}</code></td>
+        <td>${accessBadge}</td>
+        <td>
+          <div style="display: flex; gap: 4px;">
+            <button class="btn btn-outline btn-sm" onclick="editCustomCmd('${c.id}')"><i class="fa-solid fa-pen"></i></button>
+            <button class="btn btn-danger btn-sm" onclick="deleteCustomCmd('${c.id}')"><i class="fa-solid fa-trash"></i></button>
+          </div>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function openCmdModal(c = null) {
+    document.getElementById('cmdId').value = c ? c.id : '';
+    document.getElementById('cmdTrigger').value = c ? c.trigger : '';
+    document.getElementById('cmdResponse').value = c ? c.response : '';
+    document.getElementById('cmdAdminOnly').checked = c ? !!c.adminOnly : false;
+    document.getElementById('cmdModalTitle').innerHTML = c 
+      ? `<i class="fa-solid fa-pen-to-square"></i> Edit Custom Command`
+      : `<i class="fa-solid fa-terminal"></i> Tambah Custom Command`;
+    document.getElementById('cmdModal').classList.add('active');
+  }
+
+  function closeCmdModal() {
+    document.getElementById('cmdModal').classList.remove('active');
+  }
+
+  function editCustomCmd(id) {
+    const c = (stateData.customCommands || []).find(x => x.id === id);
+    if (c) openCmdModal(c);
+  }
+
+  async function deleteCustomCmd(id) {
+    if (!confirm('Apakah Anda yakin ingin menghapus perintah ini?')) return;
+    try {
+      const res = await fetch(`/api/bot/custom-command/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) fetchState();
+    } catch (err) {
+      alert('Error deleting command: ' + err.message);
+    }
+  }
+
+  const cmdForm = document.getElementById('cmdForm');
+  if (cmdForm) {
+    cmdForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('cmdId').value;
+    const trigger = document.getElementById('cmdTrigger').value.trim();
+    const response = document.getElementById('cmdResponse').value;
+    const adminOnly = document.getElementById('cmdAdminOnly').checked;
+
+    try {
+      const res = await fetch('/api/bot/custom-command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, trigger, response, adminOnly })
+      });
+      const data = await res.json();
+      if (data.success) {
+        closeCmdModal();
+        fetchState();
+      } else {
+        alert(data.error || 'Gagal menyimpan perintah');
+      }
+    } catch (err) {
+      alert('Error saving command: ' + err.message);
+    }
+  });
+  }
+
+  // Template Modal logic
+  function openTemplateModal(t = null) {
+    document.getElementById('tplId').value = t ? t.id : '';
+    document.getElementById('tplName').value = t ? t.name : '';
+    document.getElementById('tplHeader').value = t ? t.headerTitle : '';
+    document.getElementById('tplSubHeader').value = t ? t.subHeader : '';
+    document.getElementById('tplModalTitle').innerHTML = t 
+      ? `<i class="fa-solid fa-pen-to-square"></i> Edit Template LW`
+      : `<i class="fa-solid fa-plus"></i> Tambah Template LW`;
+    document.getElementById('templateModal').classList.add('active');
+  }
+
+  function closeTemplateModal() {
+    document.getElementById('templateModal').classList.remove('active');
+  }
+
+  function editTemplate(id) {
+    const t = stateData.templates.find(x => x.id === id);
+    if (t) openTemplateModal(t);
+  }
+
+  async function setActiveTemplate(templateId) {
+    try {
+      const res = await fetch('/api/bot/active-template', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ templateId })
+      });
+      const ct = res.headers.get('content-type') || '';
+      if (!ct.includes('application/json')) {
+        const txt = await res.text();
+        alert('Server Error (' + res.status + '): ' + txt.substring(0, 150));
+        return;
+      }
+      const data = await res.json();
+      if (data.success) {
+        document.getElementById('previewTemplateSelect').value = templateId;
+        fetchState();
+      }
+    } catch (err) {
+      alert('Error setting active template: ' + err.message);
+    }
+  }
+
+  async function deleteTemplate(id) {
+    if (!confirm('Apakah Anda yakin ingin menghapus template ini?')) return;
+    try {
+      const res = await fetch(`/api/bot/template/${id}`, { method: 'DELETE' });
+      const ct = res.headers.get('content-type') || '';
+      if (!ct.includes('application/json')) {
+        const txt = await res.text();
+        alert('Server Error (' + res.status + '): ' + txt.substring(0, 150));
+        return;
+      }
+      const data = await res.json();
+      if (data.success) fetchState();
+    } catch (err) {
+      alert('Error deleting template: ' + err.message);
+    }
+  }
+
+  const tplForm = document.getElementById('templateForm');
+  if (tplForm) {
+    tplForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('tplId').value;
+    const name = document.getElementById('tplName').value.trim();
+    const headerTitle = document.getElementById('tplHeader').value;
+    const subHeader = document.getElementById('tplSubHeader').value;
+
+    try {
+      const res = await fetch('/api/bot/template', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, name, headerTitle, subHeader })
+      });
+      const ct = res.headers.get('content-type') || '';
+      if (!ct.includes('application/json')) {
+        const txt = await res.text();
+        alert('Server Error (' + res.status + '): ' + txt.substring(0, 150));
+        return;
+      }
+      const data = await res.json();
+      if (data.success) {
+        closeTemplateModal();
+        fetchState();
+      } else {
+        alert(data.error || 'Gagal menyimpan template');
+      }
+    } catch (err) {
+      alert('Error saving template: ' + err.message);
+    }
+  });
+  }
+
+  // Admin Modal logic
+  function openAdminModal(a = null) {
+    document.getElementById('admId').value = a ? a.id : '';
+    document.getElementById('admName').value = a ? a.name : '';
+    document.getElementById('admNumber').value = a ? a.number : '';
+    document.getElementById('admTemplateSelect').value = a ? (a.templateId || '') : '';
+    document.getElementById('admModalTitle').innerHTML = a 
+      ? `<i class="fa-solid fa-pen-to-square"></i> Edit Admin Manual`
+      : `<i class="fa-solid fa-user-plus"></i> Tambah Admin Manual`;
+    document.getElementById('adminModal').classList.add('active');
+  }
+
+  function closeAdminModal() {
+    document.getElementById('adminModal').classList.remove('active');
+  }
+
+  function editAdmin(id) {
+    const a = stateData.admins.find(x => x.id === id);
+    if (a) openAdminModal(a);
+  }
+
+  async function deleteAdmin(id) {
+    if (!confirm('Apakah Anda yakin ingin menghapus admin ini?')) return;
+    try {
+      const res = await fetch(`/api/bot/admin/${id}`, { method: 'DELETE' });
+      const ct = res.headers.get('content-type') || '';
+      if (!ct.includes('application/json')) {
+        const txt = await res.text();
+        alert('Server Error (' + res.status + '): ' + txt.substring(0, 150));
+        return;
+      }
+      const data = await res.json();
+      if (data.success) fetchState();
+    } catch (err) {
+      alert('Error deleting admin: ' + err.message);
+    }
+  }
+
+  const admForm = document.getElementById('adminForm');
+  if (admForm) {
+    admForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('admId').value;
+    const name = document.getElementById('admName').value.trim();
+    const number = document.getElementById('admNumber').value.trim();
+    const templateId = document.getElementById('admTemplateSelect').value;
+
+    try {
+      const res = await fetch('/api/bot/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, name, number, templateId })
+      });
+      const ct = res.headers.get('content-type') || '';
+      if (!ct.includes('application/json')) {
+        const txt = await res.text();
+        alert('Server Error (' + res.status + '): ' + txt.substring(0, 150));
+        return;
+      }
+      const data = await res.json();
+      if (data.success) {
+        closeAdminModal();
+        fetchState();
+      } else {
+        alert(data.error || 'Gagal menyimpan admin');
+      }
+    } catch (err) {
+      alert('Error saving admin: ' + err.message);
+    }
+  });
+  }
+
+  const depForm = document.getElementById('depositForm');
+  if (depForm) {
+    depForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const player = document.getElementById('dpPlayer').value.trim();
+    const amount = parseInt(document.getElementById('dpAmount').value, 10);
+
+    if (!player || isNaN(amount)) return;
+
+    try {
+      const res = await fetch('/api/bot/deposit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ player, amount })
+      });
+      const data = await res.json();
+      if (data.success) {
+        document.getElementById('dpPlayer').value = '';
+        document.getElementById('dpAmount').value = '';
+        fetchState();
+      } else {
+        alert(data.error || 'Gagal deposit');
+      }
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+  });
+  }
+
+  const setForm = document.getElementById('settingsForm');
+  if (setForm) {
+    setForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const prefix = document.getElementById('settingPrefix').value;
+
+    try {
+      const res = await fetch('/api/bot/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prefix })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('✅ Settings saved!');
+        fetchState();
+      }
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+  });
+  }
+
+  const joinForm = document.getElementById('joinGroupForm');
+  if (joinForm) {
+    joinForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const link = document.getElementById('joinGroupLink').value.trim();
+    if (!link) return;
+
+    try {
+      const res = await fetch('/api/bot/join-group', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ link })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('✅ Bot berhasil bergabung ke grup!');
+        document.getElementById('joinGroupLink').value = '';
+        fetchState();
+        fetchJoinedGroups();
+      } else {
+        alert('⚠️ ' + (data.error || 'Gagal masuk grup'));
+      }
+    } catch (err) {
+      alert('Error joining group: ' + err.message);
+    }
+  });
+  }
+
+  async function fetchJoinedGroups() {
+    try {
+      const res = await fetch('/api/bot/groups');
+      const data = await res.json();
+      const sel = document.getElementById('targetGroupSelect');
+      if (!sel) return;
+
+      const currentVal = sel.value;
+      sel.innerHTML = '<option value="">-- Pilih Grup Target --</option>';
+
+      if (data.groups && data.groups.length > 0) {
+        data.groups.forEach(g => {
+          const opt = document.createElement('option');
+          opt.value = g.id;
+          opt.innerText = `${g.subject} (${g.size} anggota)`;
+          sel.appendChild(opt);
+        });
+      }
+
+      if (currentVal && data.groups.some(g => g.id === currentVal)) {
+        sel.value = currentVal;
+      } else if (data.targetGroupJid) {
+        sel.value = data.targetGroupJid;
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function onTargetGroupChange() {
+    const groupJid = document.getElementById('targetGroupSelect').value;
+    try {
+      const res = await fetch('/api/bot/target-group', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ groupJid })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('🎯 Grup target rekap bot berhasil diperbarui!');
+        fetchState();
+      }
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+  }
+
+  async function copyLwText() {
+    const text = document.getElementById('lwPreview').innerText;
+    await navigator.clipboard.writeText(text);
+    alert('📋 Rekap LW tersalin ke clipboard!');
+  }
+
+  async function sendLwToGroup() {
+    try {
+      const templateId = document.getElementById('previewTemplateSelect').value;
+      const res = await fetch('/api/bot/send-lw', { 
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ templateId })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('🚀 Rekap LW berhasil dikirim ke grup WhatsApp!');
+      } else {
+        alert('⚠️ ' + (data.error || 'Gagal mengirim rekap. Rekam grup belum ada.'));
+      }
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+  }
+
+  async function editPlayerSaldo(name, currentSaldo) {
+    const newSaldoStr = prompt(`Ubah saldo untuk ${name}:`, currentSaldo);
+    if (newSaldoStr === null) return;
+    const newSaldo = parseInt(newSaldoStr, 10);
+    if (isNaN(newSaldo)) return;
+
+    try {
+      const res = await fetch('/api/bot/player-saldo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, saldo: newSaldo })
+      });
+      const data = await res.json();
+      if (data.success) fetchState();
+    } catch (err) {
+      alert('Error updating saldo: ' + err.message);
+    }
+  }
+
+  async function deletePlayer(name) {
+    if (!confirm(`Apakah Anda yakin ingin menghapus data saldo pemain ${name}?`)) return;
+    try {
+      const res = await fetch(`/api/bot/player/${encodeURIComponent(name)}`, {
+        method: 'DELETE'
+      });
+      const data = await res.json();
+      if (data.success) fetchState();
+    } catch (err) {
+      alert('Error deleting player: ' + err.message);
+    }
+  }
+
+  async function resetGameSession() {
+    if (!confirm('Apakah Anda yakin ingin mereset seluruh histori game? Saldo pemain akan tetap disimpan.')) return;
+    try {
+      const res = await fetch('/api/bot/reset-game', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) fetchState();
+    } catch (err) {
+      alert('Error resetting game: ' + err.message);
+    }
+  }
+
+  async function resetWaSession() {
+    if (!confirm('Apakah Anda yakin ingin menghapus sesi login WhatsApp & scan ulang QR / pairing code baru?')) return;
+    try {
+      const res = await fetch('/api/bot/logout', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        alert('🔄 Sesi WhatsApp telah di-reset. QR Code / Pairing Code baru akan segera muncul!');
+        fetchStatus();
+      }
+    } catch (err) {
+      alert('Error resetting WA session: ' + err.message);
+    }
+  }
+
+  // Poll status & state frequently
+  setInterval(fetchStatus, 1500);
+  setInterval(fetchState, 3000);
+
+  fetchStatus();
+  fetchState();
+  fetchJoinedGroups();
+</script>
+</body>
+</html>
