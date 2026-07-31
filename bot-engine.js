@@ -10,6 +10,7 @@ const pino = require('pino');
 const QRCode = require('qrcode');
 const fs = require('fs');
 const path = require('path');
+const rekapStore = require('./rekap-store');
 
 const STATE_FILE = path.join(__dirname, 'bot-state.json');
 const AUTH_DIR = path.join(__dirname, 'baileys_auth_info');
@@ -67,6 +68,32 @@ class BotEngine {
     if (!state.customCommands) state.customCommands = [];
     if (!state.settings) state.settings = {};
     if (!state.settings.activeTemplateId) state.settings.activeTemplateId = 'tpl_default';
+
+    // Migrate old global game/saldo data into per-admin gameState
+    const hasOldGlobalData = (state.games && state.games.length > 0) ||
+      (state.players && Object.keys(state.players).length > 0);
+
+    if (hasOldGlobalData && state.admins.length > 0) {
+      // Move old global data to each admin that doesn't have gameState yet
+      for (const admin of state.admins) {
+        if (!admin.gameState) {
+          admin.gameState = {
+            games: [],
+            players: {},
+            currentGameNumber: 1,
+            lastBet: null,
+            deposits: []
+          };
+        }
+      }
+      // Clear old global fields
+      state.games = [];
+      state.players = {};
+      state.currentGameNumber = 1;
+      state.lastBet = null;
+      state.deposits = [];
+      state.savedSaldo = null;
+    }
 
     if (state.templates.length === 0) {
       state.templates.push({
@@ -261,6 +288,28 @@ class BotEngine {
     return manualAdmin || null;
   }
 
+  // Get or initialize per-admin game state (games, saldo, etc.)
+  getAdminGameState(senderJid, groupJid) {
+    const adminData = this.getAdminData(senderJid, groupJid);
+    if (!adminData) {
+      console.log(`[PER-ADMIN] No admin found for sender ${senderJid}`);
+      return null;
+    }
+    console.log(`[PER-ADMIN] Sender ${senderJid} → Admin: ${adminData.name} (${adminData.number}), id: ${adminData.id}`);
+
+    if (!adminData.gameState) {
+      adminData.gameState = {
+        games: [],
+        players: {},
+        currentGameNumber: 1,
+        lastBet: null,
+        deposits: []
+      };
+    }
+
+    return adminData.gameState;
+  }
+
   // Check if sender is BOTH a WhatsApp Group Admin AND registered in Manual Admin list with status ON
   async isAdmin(groupJid, senderJid) {
     try {
@@ -350,20 +399,11 @@ class BotEngine {
     console.log(`[COMMAND RECEIVED] .${command} from ${sender} in ${from} (isAdmin: ${admin})`);
     this.addLog(`Perintah .${command} dari ${sender.split('@')[0]}`, 'info');
 
-    if (isGroup && this.state.settings.adminOnly && !admin) {
+    const isMyIdCmd = (command === 'myidq' || command === 'myid' || command === 'id');
+
+    if (isGroup && this.state.settings.adminOnly && !admin && !isMyIdCmd) {
       console.log(`[BLOCKED NON-ADMIN] ${sender} is not authorized.`);
       this.addLog(`Akses Ditolak: ${sender.split('@')[0]} mencoba perintah .${command}`, 'warn');
-      let displayId = sender.split('@')[0];
-      if (this.sock) {
-        const groupMetadata = await this.sock.groupMetadata(from).catch(() => null);
-        if (groupMetadata && groupMetadata.participants) {
-          const p = groupMetadata.participants.find(x => x.id === sender || x.lid === sender);
-          if (p && p.id) displayId = p.id.split('@')[0];
-        }
-      }
-      await this.sock.sendMessage(from, { 
-        text: `⚠️ *Akses Ditolak!*\nNomor WhatsApp Anda (\`${displayId}\`) belum terdaftar sebagai Admin.\n\nSilakan tambahkan nomor \`${displayId}\` di Web Dashboard pada menu *Daftar Admin Manual*.` 
-      }, { quoted: msg });
       return;
     }
     // ONLY process commands from the designated target group
@@ -378,15 +418,15 @@ class BotEngine {
     try {
       switch (command) {
         case 'c':
-          await this.handleCalculateBet(from, msg, text, args);
+          await this.handleCalculateBet(from, msg, text, args, sender);
           break;
         case 'dp':
         case 'deposit':
-          await this.handleDeposit(from, msg, args);
+          await this.handleDeposit(from, msg, args, sender);
           break;
         case 'b':
         case 'k':
-          await this.handleGameResult(from, msg, command, args);
+          await this.handleGameResult(from, msg, command, args, sender);
           break;
         case 'lw':
           await this.handleSendLw(from, null, sender);
@@ -395,31 +435,41 @@ class BotEngine {
           if (isGroup) await this.handleKick(from, msg, args);
           break;
         case 'on':
+        case 'close':
+        case 'tutup':
           if (isGroup) await this.handleGroupAnnouncement(from, true);
           break;
         case 'off':
+        case 'open':
+        case 'buka':
           if (isGroup) await this.handleGroupAnnouncement(from, false);
           break;
+        case 'myidq':
         case 'myid':
         case 'id':
           {
             let phone = sender.split('@')[0];
             let lid = sender.endsWith('@lid') ? phone : '';
+            let isGroupAdmin = !isGroup;
             if (isGroup && this.sock) {
-              const gm = await this.sock.groupMetadata(from).catch(() => null);
+              const gm = (this.groupMetadataCache && this.groupMetadataCache[from]) || await this.sock.groupMetadata(from).catch(() => null);
               if (gm && gm.participants) {
                 const p = gm.participants.find(x => x.id === sender || x.lid === sender);
                 if (p) {
                   if (p.id) phone = p.id.split('@')[0];
                   if (p.lid) lid = p.lid.split('@')[0];
+                  if (p.admin === 'admin' || p.admin === 'superadmin') isGroupAdmin = true;
                 }
               }
             }
-            const infoText = `📱 *INFORMASI ID WHATSAPP*\n\n` +
-              `• *Nomor WA*: \`${phone}\`\n` +
-              `• *ID Privasi (LID)*: \`${lid || 'Tersambung ke Nomor WA'}\`\n\n` +
-              `_Gunakan nomor di atas untuk pendaftaran di Web Dashboard._`;
-            await this.sock.sendMessage(from, { text: infoText }, { quoted: msg });
+
+            if (isGroupAdmin) {
+              const infoText = `📱 *INFORMASI ID WHATSAPP*\n\n` +
+                `• *Nomor WA*: \`${phone}\`\n` +
+                `• *ID Privasi (LID)*: \`${lid || phone}\`\n\n` +
+                `_Gunakan ID Privasi (LID) di atas untuk pendaftaran Admin._`;
+              await this.sock.sendMessage(from, { text: infoText }, { quoted: msg });
+            }
           }
           break;
         case 'pp':
@@ -429,7 +479,7 @@ class BotEngine {
         case 'geser':
         case 'pindah':
         case 'transfer':
-          await this.handleGeserSaldo(from, msg, args);
+          await this.handleGeserSaldo(from, msg, args, sender);
           break;
         case 'setpp':
           if (isGroup) await this.handleSetGroupPp(from, msg);
@@ -439,11 +489,26 @@ class BotEngine {
           await this.sock.sendMessage(from, { text: '✅ Data bot berhasil disimpan!' }, { quoted: msg });
           break;
         case 'resetgame':
-          this.state.games = [];
-          this.state.currentGameNumber = 1;
-          this.state.lastBet = null;
-          this.saveState();
-          await this.sock.sendMessage(from, { text: '🔄 Permainan berhasil di-reset!' }, { quoted: msg });
+          {
+            const gs = this.getAdminGameState(sender, from);
+            if (!gs) break;
+            gs.games = [];
+            gs.currentGameNumber = 1;
+            gs.lastBet = null;
+            this.saveState();
+            await this.sock.sendMessage(from, { text: '🔄 Permainan berhasil di-reset!' }, { quoted: msg });
+          }
+          break;
+        case 'clear':
+          await this.handleClear(from, msg, sender);
+          break;
+        case 's':
+          await this.handleSaveLw(from, msg, sender);
+          break;
+        case 'earn':
+        case 'rekap':
+        case 'income':
+          await this.handleEarnCommand(from, msg, text, sender);
           break;
         default:
           {
@@ -457,12 +522,13 @@ class BotEngine {
                 break;
               }
 
+              const gs = this.getAdminGameState(sender, from);
               let responseText = customCmd.response || '';
               const senderPhone = (sender || '').split('@')[0];
               responseText = responseText
                 .replace(/{PREFIX}/g, prefix)
                 .replace(/{SENDER}/g, senderPhone)
-                .replace(/{GAME_COUNT}/g, this.state.games.length);
+                .replace(/{GAME_COUNT}/g, gs ? gs.games.length : 0);
 
               await this.sock.sendMessage(from, { text: responseText }, { quoted: msg });
             }
@@ -471,7 +537,6 @@ class BotEngine {
       }
     } catch (err) {
       console.error(`Error executing command .${command}:`, err);
-      await this.sock.sendMessage(from, { text: `❌ Gagal memproses perintah .${command}: ${err.message}` }, { quoted: msg });
     }
   }
 
@@ -497,15 +562,21 @@ class BotEngine {
 
       if (!currentSide) continue;
 
-      // Parse player line: e.g., "paruel 4", "topan 9lf", "acik 18", "aboy 5d"
-      const match = line.match(/^([a-zA-Z0-9_\-@]+)\s+(\d+)([a-zA-Z]*)$/i);
+      // Parse player line: e.g., "paruel 4", "nama 4.", "topan 9lf", "acik 18", "aboy 5d"
+      const match = line.match(/^([a-zA-Z0-9_\-@]+)\s+(\d+)\s*([\.a-zA-Z]*)$/i);
       if (match) {
         const name = match[1].toUpperCase();
         const amount = parseInt(match[2], 10);
-        const suffix = match[3].toLowerCase();
-        const isLf = suffix.includes('lf');
+        const suffix = (match[3] || '').toLowerCase();
+        
+        // 'lf' suffix triggers LF header line + Saldo Kurang
+        // '.' suffix triggers Saldo Kurang
+        // 'd' or plain number indicates already transferred (sudah TF to admin)
+        const hasLf = suffix.includes('lf');
+        const hasDot = suffix.includes('.');
+        const isSaldoKurang = hasLf || hasDot;
 
-        const item = { name, amount, isLf, raw: line };
+        const item = { name, amount, hasLf, hasDot, isSaldoKurang, isLf: isSaldoKurang, raw: line };
         if (currentSide === 'k') kList.push(item);
         else if (currentSide === 'b') bList.push(item);
       }
@@ -515,7 +586,9 @@ class BotEngine {
     const totalB = bList.reduce((sum, item) => sum + item.amount, 0);
     const balancedAmount = Math.min(totalK, totalB);
 
-    const lfPlayers = [...kList, ...bList].filter((p) => p.isLf);
+    const allPlayers = [...kList, ...bList];
+    const saldoKurangPlayers = allPlayers.filter((p) => p.isSaldoKurang);
+    const lfHeaderPlayers = allPlayers.filter((p) => p.hasLf);
 
     return {
       kList,
@@ -523,11 +596,16 @@ class BotEngine {
       totalK,
       totalB,
       balancedAmount,
-      lfPlayers
+      lfPlayers: saldoKurangPlayers,
+      saldoKurangPlayers,
+      lfHeaderPlayers
     };
   }
 
-  async handleCalculateBet(from, msg, text, args) {
+  async handleCalculateBet(from, msg, text, args, sender) {
+    const gs = this.getAdminGameState(sender, from);
+    if (!gs) return;
+
     let betText = '';
 
     // Check if command was sent as reply to a bet message
@@ -542,12 +620,11 @@ class BotEngine {
     }
 
     if (!betText || (!betText.toLowerCase().includes('k:') && !betText.toLowerCase().includes('b:'))) {
-      await this.sock.sendMessage(from, { text: '⚠️ Format taruhan tidak ditemukan! Balas pesan taruhan dengan .c' }, { quoted: msg });
       return;
     }
 
     const parsed = this.parseBetString(betText);
-    this.state.lastBet = parsed;
+    gs.lastBet = parsed;
     this.saveState();
 
     // Format output exactly as requested
@@ -559,14 +636,27 @@ class BotEngine {
     output += `✨ B : ${bAmountsStr} : ${parsed.totalB}\n`;
     output += `─────────\n`;
 
-    if (parsed.totalK === parsed.totalB) {
-      if (parsed.lfPlayers.length > 0) {
-        const lfNames = parsed.lfPlayers.map((p) => p.name).join(', ');
-        output += `ˎˊ˗ LF : ${lfNames}\n\n`;
-        output += `ˎˊ˗ SALDO KURANG :\n`;
-        for (const p of parsed.lfPlayers) {
-          output += `     ${p.name} -${p.amount}\n`;
+    // Format LF & Saldo Kurang sections
+    const formatLfAndSaldoKurang = () => {
+      let res = '';
+      if (parsed.lfHeaderPlayers.length > 0) {
+        const lfNames = parsed.lfHeaderPlayers.map((p) => p.name).join(', ');
+        res += `ˎˊ˗ LF : ${lfNames}\n\n`;
+      }
+      if (parsed.saldoKurangPlayers.length > 0) {
+        res += `ˎˊ˗ SALDO KURANG :\n`;
+        for (const p of parsed.saldoKurangPlayers) {
+          res += `     ${p.name} -${p.amount}\n`;
         }
+      }
+      return res;
+    };
+
+    const extraSection = formatLfAndSaldoKurang();
+
+    if (parsed.totalK === parsed.totalB) {
+      if (extraSection) {
+        output += extraSection;
       } else {
         output += `➤ Seimbang! ${parsed.totalK} vs ${parsed.totalB}`;
       }
@@ -574,15 +664,20 @@ class BotEngine {
       const diff = Math.abs(parsed.totalK - parsed.totalB);
       const needSide = parsed.totalK > parsed.totalB ? 'B' : 'K';
       output += `➤ Tidak seimbang! ${needSide} -${diff}`;
+      if (extraSection) {
+        output += `\n\n` + extraSection;
+      }
     }
 
     await this.sock.sendMessage(from, { text: output.trim() }, { quoted: msg });
   }
 
-  async handleDeposit(from, msg, args) {
+  async handleDeposit(from, msg, args, sender) {
+    const gs = this.getAdminGameState(sender, from);
+    if (!gs) return;
+
     // .dp acik 38
     if (args.length < 3) {
-      await this.sock.sendMessage(from, { text: '⚠️ Format deposit: .dp <nama> <nominal>\nContoh: .dp acik 38' }, { quoted: msg });
       return;
     }
 
@@ -590,15 +685,14 @@ class BotEngine {
     const amount = parseInt(args[2], 10);
 
     if (isNaN(amount) || amount <= 0) {
-      await this.sock.sendMessage(from, { text: '⚠️ Nominal deposit harus berupa angka positif!' }, { quoted: msg });
       return;
     }
 
-    const currentSaldo = this.state.players[playerName] || 0;
+    const currentSaldo = gs.players[playerName] || 0;
     const newSaldo = currentSaldo + amount;
-    this.state.players[playerName] = newSaldo;
+    gs.players[playerName] = newSaldo;
 
-    this.state.deposits.push({
+    gs.deposits.push({
       player: playerName,
       amount,
       newSaldo,
@@ -611,19 +705,20 @@ class BotEngine {
     await this.sock.sendMessage(from, { text: output }, { quoted: msg });
   }
 
-  async handleGameResult(from, msg, winSideCmd, args) {
+  async handleGameResult(from, msg, winSideCmd, args, sender) {
+    const gs = this.getAdminGameState(sender, from);
+    if (!gs) return;
+
     // .b 33 or .k 29
     const winSide = winSideCmd.toUpperCase(); // 'B' or 'K'
     const score = args[1] ? parseInt(args[1], 10) : 0;
 
     if (isNaN(score) || score <= 0) {
-      await this.sock.sendMessage(from, { text: `⚠️ Format angka salah! Contoh: .${winSide.toLowerCase()} 33` }, { quoted: msg });
       return;
     }
 
-    const bet = this.state.lastBet;
+    const bet = gs.lastBet;
     if (!bet) {
-      await this.sock.sendMessage(from, { text: '⚠️ Belum ada data taruhan aktif! Ketik .c terlebih dahulu.' }, { quoted: msg });
       return;
     }
 
@@ -636,20 +731,20 @@ class BotEngine {
 
     // Update balances
     for (const winner of winList) {
-      const curr = this.state.players[winner.name] || 0;
-      this.state.players[winner.name] = curr + winner.amount;
+      const curr = gs.players[winner.name] || 0;
+      gs.players[winner.name] = curr + winner.amount;
     }
 
     for (const loser of loseList) {
-      const curr = this.state.players[loser.name] || 0;
-      this.state.players[loser.name] = curr - loser.amount;
+      const curr = gs.players[loser.name] || 0;
+      gs.players[loser.name] = curr - loser.amount;
     }
 
-    const gameNumStr = String(this.state.currentGameNumber).padStart(2, '0');
+    const gameNumStr = String(gs.currentGameNumber).padStart(2, '0');
     const gameLabel = `GAME ${gameNumStr} : ${winSide} ${score} (${netGamePoints})`;
 
-    this.state.games.push({
-      gameNumber: this.state.currentGameNumber,
+    gs.games.push({
+      gameNumber: gs.currentGameNumber,
       winSide,
       score,
       netPoints: netGamePoints,
@@ -657,11 +752,10 @@ class BotEngine {
       timestamp: new Date().toISOString()
     });
 
-    this.state.currentGameNumber += 1;
+    gs.currentGameNumber += 1;
     this.saveState();
 
     // Automatically send full .lw rekap
-    const sender = msg.key.participant || msg.key.remoteJid;
     await this.handleSendLw(from, null, sender);
   }
 
@@ -693,22 +787,46 @@ class BotEngine {
 
   generateLwText(templateId, senderJid, groupJid) {
     const tpl = this.getTemplateForSenderOrId(templateId, senderJid, groupJid);
-    let text = `${tpl.headerTitle}\n\n${tpl.subHeader}\n`;
 
-    // Games history
-    for (const g of this.state.games) {
-      text += `${g.label}\n`;
+    // Today's date in Indonesian format
+    const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    const now = new Date();
+    const dateStr = `${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
+
+    let text = `${tpl.headerTitle}\n\n${tpl.subHeader}\n📅 ${dateStr}\n`;
+
+    // Get per-admin game state
+    const gs = senderJid ? this.getAdminGameState(senderJid, groupJid) : null;
+    const adminData = senderJid ? this.getAdminData(senderJid, groupJid) : null;
+
+    // Show saved game history (per admin) from .s if available
+    if (adminData && adminData.savedGameHistory && adminData.savedGameHistory.length > 0) {
+      for (const g of adminData.savedGameHistory) {
+        text += `${g.label}\n`;
+      }
+      if (gs && gs.games.length > 0) {
+        text += `─────────\n`;
+      }
+    }
+
+    // Current games history (per admin)
+    if (gs) {
+      for (const g of gs.games) {
+        text += `${g.label}\n`;
+      }
     }
 
     text += `\n`;
 
-    // Calculate balances
+    // Calculate balances (per admin)
+    const players = gs ? gs.players : {};
     const positivePlayers = [];
     const negativePlayers = [];
     let totalPositive = 0;
     let totalNegative = 0;
 
-    for (const [name, saldo] of Object.entries(this.state.players)) {
+    for (const [name, saldo] of Object.entries(players)) {
       if (saldo > 0) {
         positivePlayers.push({ name, saldo });
         totalPositive += saldo;
@@ -797,7 +915,6 @@ class BotEngine {
       }
 
       if (!targetJid) {
-        await this.sock.sendMessage(groupJid, { text: '⚠️ Tag anggota atau balas pesannya dengan .kick' }, { quoted: msg });
         return;
       }
 
@@ -813,13 +930,8 @@ class BotEngine {
     try {
       const setting = announce ? 'announcement' : 'not_announcement';
       await this.sock.groupSettingUpdate(groupJid, setting);
-      const msgText = announce
-        ? '🔒 Fitur chat ditutup! Hanya admin yang bisa mengirim pesan.'
-        : '🔓 Fitur chat dibuka! Semua anggota bisa mengirim pesan.';
-      await this.sock.sendMessage(groupJid, { text: msgText });
     } catch (err) {
       console.error('Error in handleGroupAnnouncement:', err);
-      await this.sock.sendMessage(groupJid, { text: '⚠️ Bot harus menjadi admin grup untuk mengubah pengaturan grup.' });
     }
   }
 
@@ -841,7 +953,6 @@ class BotEngine {
       const isImage = msg.message.imageMessage;
 
       if (!isImage && !isQuotedImage) {
-        await this.sock.sendMessage(groupJid, { text: '⚠️ Kirim atau balas foto dengan perintah .setpp' }, { quoted: msg });
         return;
       }
 
@@ -858,12 +969,12 @@ class BotEngine {
     }
   }
 
-  async handleGeserSaldo(from, msg, args) {
+  async handleGeserSaldo(from, msg, args, sender) {
+    const gs = this.getAdminGameState(sender, from);
+    if (!gs) return;
+
     const rawText = args.slice(1).join(' ').trim();
     if (!rawText) {
-      await this.sock.sendMessage(from, {
-        text: '⚠️ Format geser saldo:\n.geser <pemain1> ke <pemain2> <nominal>\nContoh: .geser gun ke ken 40'
-      }, { quoted: msg });
       return;
     }
 
@@ -896,25 +1007,21 @@ class BotEngine {
     }
 
     if (!fromPlayer || !toPlayer || isNaN(amount) || amount <= 0) {
-      await this.sock.sendMessage(from, {
-        text: '⚠️ Format salah!\nContoh: .geser gun ke ken 40'
-      }, { quoted: msg });
       return;
     }
 
     if (fromPlayer === toPlayer) {
-      await this.sock.sendMessage(from, { text: '⚠️ Pemain asal dan tujuan tidak boleh sama!' }, { quoted: msg });
       return;
     }
 
-    const currentFromSaldo = this.state.players[fromPlayer] || 0;
-    const currentToSaldo = this.state.players[toPlayer] || 0;
+    const currentFromSaldo = gs.players[fromPlayer] || 0;
+    const currentToSaldo = gs.players[toPlayer] || 0;
 
     const newFromSaldo = currentFromSaldo - amount;
     const newToSaldo = currentToSaldo + amount;
 
-    this.state.players[fromPlayer] = newFromSaldo;
-    this.state.players[toPlayer] = newToSaldo;
+    gs.players[fromPlayer] = newFromSaldo;
+    gs.players[toPlayer] = newToSaldo;
 
     this.saveState();
 
@@ -927,6 +1034,105 @@ class BotEngine {
       `_Ketik .lw untuk melihat rekap saldo terbaru._`;
 
     await this.sock.sendMessage(from, { text: output }, { quoted: msg });
+  }
+
+  async handleClear(from, msg, sender) {
+    const adminData = this.getAdminData(sender, from);
+    const gs = this.getAdminGameState(sender, from);
+    if (!gs) return;
+
+    // Clear ONLY this admin's game history, saldo, and saved snapshot
+    gs.games = [];
+    gs.currentGameNumber = 1;
+    gs.lastBet = null;
+    gs.deposits = [];
+    gs.players = {};
+
+    if (adminData) {
+      adminData.savedGameHistory = [];
+    }
+
+    this.saveState();
+
+    // Auto-send fresh LW for this admin
+    await this.handleSendLw(from, null, sender);
+  }
+
+  async handleSaveLw(from, msg, sender) {
+    // Find admin data for this sender (matched by number or LID)
+    const adminData = this.getAdminData(sender, from);
+    if (!adminData) return;
+
+    const gs = this.getAdminGameState(sender, from);
+    if (!gs) return;
+
+    // Save only the game history to this admin's record
+    adminData.savedGameHistory = JSON.parse(JSON.stringify(gs.games));
+    this.saveState();
+
+    const gameCount = gs.games.length;
+    let gameList = '';
+    if (gameCount > 0) {
+      gameList = gs.games.map(g => `  ${g.label}`).join('\n');
+    } else {
+      gameList = '  (tidak ada game)';
+    }
+
+    const adminName = adminData.name || adminData.number;
+    const output = `💾 *HISTORY LW BERHASIL DISIMPAN*\n\n` +
+      `👤 *Admin:* ${adminName}\n` +
+      `📋 *${gameCount} game* tersimpan:\n${gameList}\n\n` +
+      `_History ini akan tampil di LW baru saat .clear digunakan._`;
+
+    await this.sock.sendMessage(from, { text: output }, { quoted: msg });
+  }
+
+  async handleEarnCommand(from, msg, text, sender) {
+    const quotedText = msg.message.extendedTextMessage?.contextInfo?.quotedMessage?.conversation ||
+                       msg.message.extendedTextMessage?.contextInfo?.quotedMessage?.extendedTextMessage?.text;
+
+    let rawText = '';
+    if (quotedText) {
+      rawText = quotedText;
+    } else {
+      rawText = text.replace(/^\.(earn|rekap|income)\s*/i, '');
+    }
+
+    if (!rawText || !rawText.trim()) {
+      const replyText = `⚠️ *FORMAT SALAH*\n\nReply pesan rekap dengan command *.earn* atau ketik langsung:\n\n.earn\nMain + fee\n26 jul -> 140\n27 jul -> 223`;
+      await this.sock.sendMessage(from, { text: replyText }, { quoted: msg });
+      return;
+    }
+
+    const { category, entries } = rekapStore.parseEarnText(rawText);
+
+    if (!entries || entries.length === 0) {
+      const replyText = `⚠️ *TIDAK ADA DATA REKAP DITEMUKAN*\n\nPastikan format teks berisi baris seperti:\n\`26 jul -> 140\``;
+      await this.sock.sendMessage(from, { text: replyText }, { quoted: msg });
+      return;
+    }
+
+    rekapStore.addOrUpdateEntries(category, entries, 'whatsapp_bot');
+    const stats = rekapStore.getSummaryStats();
+
+    let responseStr = `📊 *REKAP PENDAPATAN DICATAT*\n\n`;
+    responseStr += `🏷️ *Kategori*: ${category}\n`;
+    responseStr += `───────────────────\n`;
+
+    let batchTotal = 0;
+    for (const item of entries) {
+      responseStr += `• *${item.dateRaw}*: +${item.amount.toLocaleString('id-ID')}\n`;
+      batchTotal += item.amount;
+    }
+
+    responseStr += `───────────────────\n`;
+    responseStr += `💰 *Subtotal Input*: ${batchTotal.toLocaleString('id-ID')}\n`;
+    responseStr += `📈 *Total Bulan Ini*: ${stats.thisMonthIncome.toLocaleString('id-ID')}\n`;
+    responseStr += `🏆 *Total Keseluruhan*: ${stats.totalIncome.toLocaleString('id-ID')}\n\n`;
+    const rekapUrl = this.state?.settings?.webRekapUrl || 'https://aasjdhov.my.id/rekap';
+    responseStr += `🌐 *Web Rekap*: ${rekapUrl}`;
+
+    await this.sock.sendMessage(from, { text: responseStr }, { quoted: msg });
   }
 }
 

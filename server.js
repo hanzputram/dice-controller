@@ -45,8 +45,84 @@ const MAX_BACKUPS = 50;
 
 // Middleware
 app.use(express.json());
+
+// Cookie Parser Middleware
+app.use((req, res, next) => {
+  req.cookies = {};
+  const rc = req.headers.cookie;
+  if (rc) {
+    rc.split(';').forEach(c => {
+      const parts = c.split('=');
+      if (parts.length >= 2) {
+        req.cookies[parts.shift().trim()] = decodeURIComponent(parts.join('='));
+      }
+    });
+  }
+  next();
+});
+
+function isSecretAuthorized(req) {
+  const cookieToken = req.cookies?.admin_session;
+  const pinHeader = req.headers['x-admin-pin'] || req.headers['x-api-key'];
+  const pinQuery = req.query?.pin || req.query?.key;
+
+  const tokenToCheck = cookieToken || pinHeader || pinQuery;
+  if (!tokenToCheck) return false;
+
+  const validPins = ['!@#$%^&*()', 'admin-authenticated'];
+  const users = readUsers();
+
+  const isPinValid = validPins.includes(tokenToCheck);
+  const isKeyValid = users.some(u => u.apiKey === tokenToCheck);
+
+  return isPinValid || isKeyValid;
+}
+
+function requireAdminAuth(req, res, next) {
+  if (isSecretAuthorized(req)) {
+    return next();
+  }
+
+  if (req.accepts('html') || req.path.endsWith('.html') || !req.path.startsWith('/api/')) {
+    return res.redirect('/rekap?unauthorized=1');
+  }
+
+  return res.status(403).json({ error: 'Access Denied', message: 'PIN Rahasia Admin Diperlukan' });
+}
+
+// ─── PROTECTED DASHBOARD ROUTES (Require Secret Admin PIN) ───────────
+app.get('/sys-config-manager', requireAdminAuth, (_req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+});
+
+app.get('/dashboard.html', requireAdminAuth, (_req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+});
+
+app.get('/dashboard', requireAdminAuth, (_req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+});
+
+app.get('/bot-dashboard.html', requireAdminAuth, (_req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'bot-dashboard.html'));
+});
+
+app.get('/bot-dashboard', requireAdminAuth, (_req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'bot-dashboard.html'));
+});
+
+app.get('/bot', requireAdminAuth, (_req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'bot-dashboard.html'));
+});
+
+// Rekap Pendapatan Page (PUBLIC — Anyone can view!)
+app.get('/rekap', (_req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'rekap.html'));
+});
+
+// Static Files Middleware
 app.use(express.static(path.join(__dirname, 'public')));
-app.get('/favicon.ico', (req, res) => res.status(204).end());
+app.get('/favicon.ico', (_req, res) => res.status(204).end());
 
 // ─── Users & API Keys (file-persisted) ───────────────────────────────
 
@@ -357,11 +433,6 @@ function getClientIp(req) {
 // ═══════════════════════════════════════════════════════════════════════
 // ROUTES — PUBLIC (no API key required)
 // ═══════════════════════════════════════════════════════════════════════
-
-// Dashboard page (Hidden Route)
-app.get('/sys-config-manager', (_req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
-});
 
 // Fake Landing Page
 app.get('/', (_req, res) => {
@@ -1744,6 +1815,95 @@ app.post('/api/bot/reset-game', (req, res) => {
   botEngine.state.lastBet = null;
   botEngine.saveState();
   res.json({ success: true });
+});
+
+// ─── Rekap Pendapatan Endpoints ─────────────────────────────────────
+const rekapStore = require('./rekap-store');
+
+app.get('/api/rekap', (_req, res) => {
+  const stats = rekapStore.getSummaryStats();
+  res.json({ success: true, ...stats });
+});
+
+app.post('/api/rekap', requireAdminAuth, (req, res) => {
+  const { category, dateIso, dateRaw, amount, note, source } = req.body;
+  if (!dateIso || amount === undefined || isNaN(amount)) {
+    return res.status(400).json({ error: 'Tanggal (dateIso) dan Jumlah (amount) wajib diisi' });
+  }
+
+  const entry = rekapStore.addSingleEntry({
+    category,
+    dateIso,
+    dateRaw,
+    amount,
+    note,
+    source: source || 'web'
+  });
+
+  res.json({ success: true, entry });
+});
+
+app.put('/api/rekap/:id', requireAdminAuth, (req, res) => {
+  const { id } = req.params;
+  const updated = rekapStore.updateSingleEntry(id, req.body);
+  if (updated) {
+    res.json({ success: true, entry: updated });
+  } else {
+    res.status(404).json({ error: 'Data rekap tidak ditemukan' });
+  }
+});
+
+app.delete('/api/rekap/:id', requireAdminAuth, (req, res) => {
+  const { id } = req.params;
+  const deleted = rekapStore.deleteSingleEntry(id);
+  if (deleted) {
+    res.json({ success: true });
+  } else {
+    res.status(404).json({ error: 'Data rekap tidak ditemukan' });
+  }
+});
+
+app.post('/api/rekap/parse', requireAdminAuth, (req, res) => {
+  const { text } = req.body;
+  if (!text) return res.status(400).json({ error: 'Text input kosong' });
+
+  const { category, entries } = rekapStore.parseEarnText(text);
+  if (entries.length === 0) {
+    return res.status(400).json({ error: 'Tidak ada data berformat "26 jul -> 140" yang terdeteksi' });
+  }
+
+  const saved = rekapStore.addOrUpdateEntries(category, entries, 'web_batch');
+  res.json({ success: true, category, entriesCount: entries.length, saved });
+});
+
+app.delete('/api/rekap/clear/all', requireAdminAuth, (_req, res) => {
+  rekapStore.clearAllRekap();
+  res.json({ success: true });
+});
+
+app.post('/api/verify-admin', (req, res) => {
+  const { pin } = req.body;
+  if (!pin || typeof pin !== 'string') {
+    return res.status(400).json({ success: false, message: 'PIN / API Key wajib diisi' });
+  }
+
+  const cleanPin = pin.trim();
+  const users = readUsers();
+  const isValidApiKey = users.some(u => u.apiKey === cleanPin);
+  const isSecretPin = (cleanPin === '!@#$%^&*()');
+
+  if (isValidApiKey || isSecretPin) {
+    // Set admin_session cookie valid for 30 days
+    res.setHeader('Set-Cookie', 'admin_session=admin-authenticated; Path=/; Max-Age=2592000; SameSite=Lax');
+    res.json({ success: true, message: 'Akses Admin Berhasil Diberikan!' });
+  } else {
+    res.status(401).json({ success: false, message: 'PIN / API Key Rahasia Salah!' });
+  }
+});
+
+app.post('/api/logout-admin', (_req, res) => {
+  res.setHeader('Set-Cookie', 'admin_session=; Path=/; Max-Age=0; SameSite=Lax');
+  res.json({ success: true, message: 'Akses Admin Ditutup' });
 });
 
 // Start WhatsApp Socket

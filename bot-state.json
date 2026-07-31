@@ -8,178 +8,11 @@
     "activeTemplateId": "tpl_1785236906638",
     "targetGroupJid": "120363430100048009@g.us"
   },
-  "currentGameNumber": 7,
-  "games": [
-    {
-      "gameNumber": 1,
-      "winSide": "B",
-      "score": 38,
-      "netPoints": 271,
-      "label": "GAME 01 : B 38 (271)",
-      "timestamp": "2026-07-28T12:17:36.475Z"
-    },
-    {
-      "gameNumber": 2,
-      "winSide": "B",
-      "score": 34,
-      "netPoints": 249,
-      "label": "GAME 02 : B 34 (249)",
-      "timestamp": "2026-07-28T12:17:54.012Z"
-    },
-    {
-      "gameNumber": 3,
-      "winSide": "B",
-      "score": 35,
-      "netPoints": 249,
-      "label": "GAME 03 : B 35 (249)",
-      "timestamp": "2026-07-28T12:18:46.360Z"
-    },
-    {
-      "gameNumber": 4,
-      "winSide": "B",
-      "score": 36,
-      "netPoints": 165,
-      "label": "GAME 04 : B 36 (165)",
-      "timestamp": "2026-07-28T12:20:00.481Z"
-    },
-    {
-      "gameNumber": 5,
-      "winSide": "K",
-      "score": 25,
-      "netPoints": 165,
-      "label": "GAME 05 : K 25 (165)",
-      "timestamp": "2026-07-28T12:20:31.913Z"
-    },
-    {
-      "gameNumber": 6,
-      "winSide": "B",
-      "score": 31,
-      "netPoints": 165,
-      "label": "GAME 06 : B 31 (165)",
-      "timestamp": "2026-07-29T04:21:15.136Z"
-    }
-  ],
-  "players": {
-    "DIKA": 50,
-    "BERY": 12,
-    "GE": 5,
-    "NOPAL": 20,
-    "LENZ": 4,
-    "ZUL": 50,
-    "GUSDE": 5,
-    "MAS": 19,
-    "ULTRAMAN": -8,
-    "PP": -5,
-    "SAURUZ": -25,
-    "ASEP": -5,
-    "JOY": -50,
-    "KARL": -5,
-    "DELZ": -28,
-    "BUDI": -3,
-    "TUPPIK": -36,
-    "DAPID": 45
-  },
-  "lastBet": {
-    "kList": [],
-    "bList": [
-      {
-        "name": "HAN",
-        "amount": 34,
-        "isLf": false,
-        "raw": "han 34"
-      }
-    ],
-    "totalK": 0,
-    "totalB": 34,
-    "balancedAmount": 0,
-    "lfPlayers": []
-  },
-  "deposits": [
-    {
-      "player": "BUDI",
-      "amount": 3,
-      "newSaldo": 3,
-      "timestamp": "2026-07-28T11:28:44.312Z"
-    },
-    {
-      "player": "PP",
-      "amount": 5,
-      "newSaldo": 5,
-      "timestamp": "2026-07-28T11:28:59.570Z"
-    },
-    {
-      "player": "NAND",
-      "amount": 27,
-      "newSaldo": 27,
-      "timestamp": "2026-07-28T12:16:59.475Z"
-    },
-    {
-      "player": "JOY",
-      "amount": 26,
-      "newSaldo": 26,
-      "timestamp": "2026-07-28T12:17:27.546Z"
-    },
-    {
-      "player": "VEREL",
-      "amount": 5,
-      "newSaldo": 5,
-      "timestamp": "2026-07-28T12:17:50.905Z"
-    },
-    {
-      "player": "ULTRAMAN",
-      "amount": 20,
-      "newSaldo": 20,
-      "timestamp": "2026-07-28T12:17:51.126Z"
-    },
-    {
-      "player": "BUT",
-      "amount": 89,
-      "newSaldo": 89,
-      "timestamp": "2026-07-28T12:18:47.799Z"
-    },
-    {
-      "player": "CHAN",
-      "amount": 20,
-      "newSaldo": 20,
-      "timestamp": "2026-07-28T12:18:52.067Z"
-    },
-    {
-      "player": "CHAN",
-      "amount": 20,
-      "newSaldo": 40,
-      "timestamp": "2026-07-28T12:18:53.168Z"
-    },
-    {
-      "player": "CHAN",
-      "amount": 20,
-      "newSaldo": 60,
-      "timestamp": "2026-07-28T12:18:58.872Z"
-    },
-    {
-      "player": "GRY",
-      "amount": 100,
-      "newSaldo": 0,
-      "timestamp": "2026-07-28T12:19:12.455Z"
-    },
-    {
-      "player": "LENZ",
-      "amount": 29,
-      "newSaldo": 29,
-      "timestamp": "2026-07-28T12:19:23.998Z"
-    },
-    {
-      "player": "TAYA",
-      "amount": 28,
-      "newSaldo": 28,
-      "timestamp": "2026-07-28T12:20:30.450Z"
-    },
-    {
-      "player": "DAPID",
-      "amount": 45,
-      "newSaldo": 45,
-      "timestamp": "2026-07-29T04:21:48.094Z"
-    }
-  ],
+  "currentGameNumber": 1,
+  "games": [],
+  "players": {},
+  "lastBet": null,
+  "deposits": [],
   "templates": [
     {
       "id": "tpl_1785236906638",
@@ -195,9 +28,9 @@
     },
     {
       "id": "tpl_1785299629387",
-      "name": "DAPID",
-      "headerTitle": "M1 ONLY DAPID\nDEV: IPHONE XR INTER\nROLL: SAFARI\nWIB\n\n\nSALDO ",
-      "subHeader": "LW DAPID"
+      "name": "LUKE",
+      "headerTitle": "M1 ONLY LUKE\nDEV: IPHONE XR INTER\nROLL: SAFARI\nWIB\n\n\nSALDO ",
+      "subHeader": "LW LUKE"
     }
   ],
   "admins": [
@@ -206,22 +39,46 @@
       "name": "DONI",
       "number": "97680575492111",
       "templateId": "",
-      "enabled": true
+      "enabled": true,
+      "gameState": {
+        "games": [],
+        "players": {},
+        "currentGameNumber": 1,
+        "lastBet": null,
+        "deposits": []
+      },
+      "savedGameHistory": []
     },
     {
       "id": "admin_1785299929937",
-      "name": "DAPID",
+      "name": "LUKE",
       "number": "51943418409124",
       "templateId": "tpl_1785299629387",
-      "enabled": true
+      "enabled": false,
+      "gameState": {
+        "games": [],
+        "players": {},
+        "currentGameNumber": 1,
+        "lastBet": null,
+        "deposits": []
+      }
     },
     {
       "id": "admin_1785299950749",
       "name": "JOJI",
       "number": "195885589893130",
       "templateId": "tpl_1785238162405",
-      "enabled": true
+      "enabled": false,
+      "savedGameHistory": [],
+      "gameState": {
+        "games": [],
+        "players": {},
+        "currentGameNumber": 1,
+        "lastBet": null,
+        "deposits": []
+      }
     }
   ],
-  "customCommands": []
+  "customCommands": [],
+  "savedSaldo": null
 }
