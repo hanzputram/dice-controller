@@ -815,7 +815,8 @@ function resolveDevicePayload(apiKey) {
   const data = readData();
   const ds = readDiceState();
 
-  const myData = data.devices[apiKey] || {
+  const primaryKey = 'hanz-osaidhsf-woiiahds';
+  const myData = data.devices[apiKey] || data.devices[primaryKey] || {
     total: 9,
     distribution: [1,1,1,1,1,1,1,1,1],
     isValid: true,
