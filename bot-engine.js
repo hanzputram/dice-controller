@@ -420,6 +420,9 @@ class BotEngine {
         case 'c':
           await this.handleCalculateBet(from, msg, text, args, sender);
           break;
+        case 'fee':
+          await this.handleFeeCommand(from, msg, text, args, sender);
+          break;
         case 'dp':
         case 'deposit':
           await this.handleDeposit(from, msg, args, sender);
@@ -538,6 +541,159 @@ class BotEngine {
     } catch (err) {
       console.error(`Error executing command .${command}:`, err);
     }
+  }
+
+  calculateFee(amount) {
+    const num = parseInt(amount, 10);
+    if (isNaN(num) || num < 2) return 0;
+    if (num <= 9) return 1;
+    return Math.floor(num / 10) + 1;
+  }
+
+  async handleFeeCommand(from, msg, text, args, sender) {
+    let rawInput = '';
+
+    // Check if command was sent as a reply to another message
+    const quotedText = msg.message.extendedTextMessage?.contextInfo?.quotedMessage?.conversation ||
+                       msg.message.extendedTextMessage?.contextInfo?.quotedMessage?.extendedTextMessage?.text;
+
+    if (quotedText) {
+      rawInput = quotedText;
+    } else {
+      // Use full text excluding ".fee"
+      rawInput = text.replace(/^\.fee\s*/i, '').trim();
+    }
+
+    if (!rawInput) {
+      const helpText = `💰 *PANDUAN PERINTAH .FEE*\n\n` +
+        `Gunakan perintah ini untuk menghitung fee otomatis.\n\n` +
+        `*Format Penggunaan:*\n` +
+        `.fee\nK:\nren 10\nB:\npan 40\n\n` +
+        `*Atau reply pesan taruhan dengan .fee*\n\n` +
+        `📋 *DAFTAR TIER FEE:*\n` +
+        `• 2 - 9 : 1\n` +
+        `• 10 - 19 : 2\n` +
+        `• 20 - 29 : 3\n` +
+        `• 30 - 39 : 4\n` +
+        `• 40 - 49 : 5\n` +
+        `• 50 - 59 : 6\n` +
+        `• 60 - 69 : 7\n` +
+        `• 70 - 79 : 8\n` +
+        `• 80 - 89 : 9\n` +
+        `• 90 - 99 : 10\n` +
+        `• 100 - 109 : 11\n` +
+        `• (dan seterusnya per kelipatan +10)`;
+      await this.sock.sendMessage(from, { text: helpText }, { quoted: msg });
+      return;
+    }
+
+    const lines = rawInput.split('\n');
+    let currentSide = null;
+    const kList = [];
+    const bList = [];
+    const generalList = [];
+
+    const hasSides = rawInput.toLowerCase().includes('k:') || rawInput.toLowerCase().includes('b:');
+
+    for (let line of lines) {
+      line = line.trim();
+      if (!line) continue;
+
+      const lower = line.toLowerCase();
+      if (lower.startsWith('k:') || lower === 'k') {
+        currentSide = 'k';
+        continue;
+      } else if (lower.startsWith('b:') || lower === 'b') {
+        currentSide = 'b';
+        continue;
+      }
+
+      // Match player line e.g., "ren 10", "pan 40", "acik 18.lf", "aboy 25"
+      const matchWithPlayer = line.match(/^([a-zA-Z0-9_\-@]+)\s+(\d+)/);
+      const matchNumberOnly = line.match(/^(\d+)$/);
+
+      if (matchWithPlayer) {
+        const name = matchWithPlayer[1].toUpperCase();
+        const amount = parseInt(matchWithPlayer[2], 10);
+        const fee = this.calculateFee(amount);
+        const item = { name, amount, fee };
+
+        if (currentSide === 'k') kList.push(item);
+        else if (currentSide === 'b') bList.push(item);
+        else generalList.push(item);
+      } else if (matchNumberOnly) {
+        const amount = parseInt(matchNumberOnly[1], 10);
+        const fee = this.calculateFee(amount);
+        const item = { name: `ITEM ${generalList.length + 1}`, amount, fee };
+
+        if (currentSide === 'k') kList.push(item);
+        else if (currentSide === 'b') bList.push(item);
+        else generalList.push(item);
+      }
+    }
+
+    // Space-separated fallback: e.g. ".fee 10 40 25"
+    if (kList.length === 0 && bList.length === 0 && generalList.length === 0) {
+      const numbers = rawInput.match(/\d+/g);
+      if (numbers) {
+        numbers.forEach((n, idx) => {
+          const amount = parseInt(n, 10);
+          const fee = this.calculateFee(amount);
+          generalList.push({ name: `NOMINAL ${idx + 1}`, amount, fee });
+        });
+      }
+    }
+
+    if (kList.length === 0 && bList.length === 0 && generalList.length === 0) {
+      await this.sock.sendMessage(from, { text: '⚠️ Tidak ada nominal angka yang dapat dihitung feenya.' }, { quoted: msg });
+      return;
+    }
+
+    let output = `💰 *HITUNG FEE PEMAIN*\n\n`;
+    let grandTotalFee = 0;
+    let grandTotalNominal = 0;
+
+    if (hasSides || kList.length > 0 || bList.length > 0) {
+      if (kList.length > 0) {
+        const subKFee = kList.reduce((sum, i) => sum + i.fee, 0);
+        const subKNominal = kList.reduce((sum, i) => sum + i.amount, 0);
+        grandTotalFee += subKFee;
+        grandTotalNominal += subKNominal;
+
+        output += `*K:*\n`;
+        for (const item of kList) {
+          output += `• ${item.name} ${item.amount} ➔ Fee: ${item.fee}\n`;
+        }
+        output += `_Subtotal Fee K: ${subKFee}_\n\n`;
+      }
+
+      if (bList.length > 0) {
+        const subBFee = bList.reduce((sum, i) => sum + i.fee, 0);
+        const subBNominal = bList.reduce((sum, i) => sum + i.amount, 0);
+        grandTotalFee += subBFee;
+        grandTotalNominal += subBNominal;
+
+        output += `*B:*\n`;
+        for (const item of bList) {
+          output += `• ${item.name} ${item.amount} ➔ Fee: ${item.fee}\n`;
+        }
+        output += `_Subtotal Fee B: ${subBFee}_\n\n`;
+      }
+    }
+
+    if (generalList.length > 0) {
+      const subGenFee = generalList.reduce((sum, i) => sum + i.fee, 0);
+      const subGenNominal = generalList.reduce((sum, i) => sum + i.amount, 0);
+      grandTotalFee += subGenFee;
+      grandTotalNominal += subGenNominal;
+
+      for (const item of generalList) {
+        output += `• ${item.name} ${item.amount} ➔ Fee: ${item.fee}\n`;
+      }
+      output += `\n`;
+    }
+
+    await this.sock.sendMessage(from, { text: output.trim() }, { quoted: msg });
   }
 
   // Parse bet string (e.g. k:\n paruel 4\n acik 18 \n b:\n topan 9lf)

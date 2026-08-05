@@ -23,8 +23,8 @@ app.use((req, res, next) => {
     // Allow method yang diperlukan
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     
-    // Allow header yang diperlukan (termasuk untuk API Key)
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, X-API-Key');
+    // Allow header yang diperlukan (termasuk untuk API Key & Admin Pin)
+    res.header('Access-Control-Allow-Headers', '*');
 
     // Allow Private Network Access (PNA) untuk membolehkan fetch dari origin publik ke localhost
     res.header('Access-Control-Allow-Private-Network', 'true');
@@ -83,11 +83,12 @@ function requireAdminAuth(req, res, next) {
     return next();
   }
 
-  if (req.accepts('html') || req.path.endsWith('.html') || !req.path.startsWith('/api/')) {
-    return res.redirect('/rekap?unauthorized=1');
+  // API routes must always return JSON, never redirect to HTML
+  if (req.path.startsWith('/api/')) {
+    return res.status(403).json({ error: 'Access Denied', message: 'PIN Rahasia Admin Diperlukan' });
   }
 
-  return res.status(403).json({ error: 'Access Denied', message: 'PIN Rahasia Admin Diperlukan' });
+  return res.redirect('/rekap?unauthorized=1');
 }
 
 // ─── PROTECTED DASHBOARD ROUTES (Require Secret Admin PIN) ───────────
@@ -1920,7 +1921,18 @@ initDiceStateFile();
 
 // ─── Start ────────────────────────────────────────────────────────────
 
-http.createServer(app).listen(PORT, () => {
+const server = http.createServer(app);
+
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`\n❌ ERROR: Port ${PORT} sedang digunakan oleh proses lain!`);
+    console.error(`👉 Jalankan perintah berikut di PowerShell untuk menghentikan proses lama:\n   Stop-Process -Name node -Force\n`);
+  } else {
+    console.error('Server error:', err);
+  }
+});
+
+server.listen(PORT, () => {
   console.log(`\n  🎲 Dice Dashboard Server`);
   console.log(`  ─────────────────────────`);
   console.log(`  Local:     http://localhost:${PORT}`);

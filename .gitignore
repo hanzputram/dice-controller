@@ -5,3 +5,5 @@ users.json
 dice-state.json
 backups/
 logs/
+baileys_auth_info/
+

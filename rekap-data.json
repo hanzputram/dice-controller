@@ -4,39 +4,65 @@
     "category": "Main + fee",
     "dateRaw": "26 jul",
     "dateIso": "2026-07-26",
-    "amount": 140,
+    "amount": 140000,
     "note": "",
     "createdAt": "2026-07-31T02:47:05.308Z",
-    "source": "whatsapp_bot"
+    "source": "whatsapp_bot",
+    "updatedAt": "2026-08-02T13:24:35.476Z"
   },
   {
     "id": "rk_1785466025308_887",
     "category": "Main + fee",
     "dateRaw": "27 jul",
     "dateIso": "2026-07-27",
-    "amount": 223,
+    "amount": 223000,
     "note": "",
     "createdAt": "2026-07-31T02:47:05.308Z",
-    "source": "whatsapp_bot"
+    "source": "whatsapp_bot",
+    "updatedAt": "2026-08-02T13:24:32.397Z"
   },
   {
     "id": "rk_1785466025308_193",
     "category": "Main + fee",
     "dateRaw": "29 jul",
     "dateIso": "2026-07-29",
-    "amount": 170,
+    "amount": 170000,
     "note": "",
     "createdAt": "2026-07-31T02:47:05.308Z",
-    "source": "whatsapp_bot"
+    "source": "whatsapp_bot",
+    "updatedAt": "2026-08-02T13:24:29.188Z"
   },
   {
     "id": "rk_1785466025308_940",
     "category": "Main + fee",
     "dateRaw": "30 jul",
     "dateIso": "2026-07-30",
-    "amount": 199,
+    "amount": 199000,
     "note": "",
     "createdAt": "2026-07-31T02:47:05.308Z",
-    "source": "whatsapp_bot"
+    "source": "whatsapp_bot",
+    "updatedAt": "2026-08-02T13:24:25.987Z"
+  },
+  {
+    "id": "rk_1785648546735_21",
+    "category": "Main + fee",
+    "dateRaw": "1 agu",
+    "dateIso": "2026-08-01",
+    "amount": 220000,
+    "note": "",
+    "createdAt": "2026-08-02T05:29:06.735Z",
+    "source": "whatsapp_bot",
+    "updatedAt": "2026-08-02T13:24:22.535Z"
+  },
+  {
+    "id": "rk_1785677016321_964",
+    "category": "Main + fee",
+    "dateRaw": "2 agu",
+    "dateIso": "2026-08-02",
+    "amount": 554000,
+    "note": "",
+    "createdAt": "2026-08-02T13:23:36.321Z",
+    "source": "whatsapp_bot",
+    "updatedAt": "2026-08-02T13:24:15.840Z"
   }
 ]
